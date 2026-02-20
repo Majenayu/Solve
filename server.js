@@ -445,6 +445,8 @@ app.get('/api/form-submit', (req, res) => {
 
 // ─── SERVE FRONTEND ───────────────────────────────────────────────────────────
 app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
+app.get('/student', (req, res) => res.sendFile(path.join(__dirname, 'dashboard1.html')));
+app.get('/dashboard1', (req, res) => res.sendFile(path.join(__dirname, 'dashboard1.html')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 app.listen(PORT, () => console.log(`🚀 PlacementPro running on http://localhost:${PORT}`));

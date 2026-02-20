@@ -742,10 +742,8 @@ async function doLogin() {
       window.location.href = '/dashboard';
       return;
     }
-    currentUser = { ...res, username };
-    document.getElementById('login-page').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    setupUser(res);
+    window.location.href = '/student';
+    return;
   } else {
     showToast('Login Failed', res.error, 'error');
   }
