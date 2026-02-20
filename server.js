@@ -31,6 +31,23 @@ const Student = mongoose.model('Student', new mongoose.Schema({
   assessmentScores:  [{ assessmentId: mongoose.Schema.Types.ObjectId, score: Number, maxScore: Number, submittedAt: Date }],
   driveApplications: [{ driveId: mongoose.Schema.Types.ObjectId, status: { type: String, enum: ['eligible','applied','shortlisted','selected','rejected'], default: 'eligible' }, ranking: { type: String, enum: ['Best','Better','Average'] } }],
   password:          { type: String, default: 'student123' },
+  // Extended profile from Google Form
+  profile: {
+    gender:           String,
+    personalEmail:    String,
+    collegeEmail:     String,
+    marks10th:        String,
+    board10th:        String,
+    marks12th:        String,
+    board12th:        String,
+    diplomaPct:       String,
+    diplomaBoard:     String,
+    ongoingBacklogs:  Number,
+    historyBacklogs:  Number,
+    presentAddress:   String,
+    permanentAddress: String,
+    aadharNo:         String
+  },
   createdAt:         { type: Date, default: Date.now }
 }));
 
@@ -322,6 +339,108 @@ app.get('/api/dashboard/stats', async (req, res) => {
     ]);
     res.json({ totalStudents, totalDrives, activeDrives, totalAssessments, placedStudents, branchStats, recentDrives, cgpaRanges });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── GOOGLE FORMS WEBHOOK ─────────────────────────────────────────────────────
+// Matches EXACT field names from the college Google Form:
+// Email, USN, Full Name, Gender, Personal Email id, Mobile Number,
+// % Marks -10th, 10th Board, % Marks -12th, 12th Board,
+// Diploma %, Diploma Board, Branch, Current CGPA Graduation,
+// Number of on going Backlogs, Number of history of Backlogs,
+// Present Address, Permanent Address, Aadhar No
+
+app.post('/api/form-submit', async (req, res) => {
+  try {
+    const raw = req.body;
+
+    // Normalize all incoming keys: lowercase + collapse spaces
+    const d = {};
+    Object.keys(raw).forEach(k => {
+      d[k.toLowerCase().trim().replace(/\s+/g, ' ')] = (raw[k] || '').toString().trim();
+    });
+
+    // ── Field mapping (exact form labels, lowercased) ──────────────────────
+    const collegeEmail  = d['email']                          || '';
+    const usn           = d['usn']                            || '';
+    const name          = d['full name']                      || '';
+    const gender        = d['gender']                         || '';
+    const personalEmail = d['personal email id']              || '';
+    const phone         = d['mobile number']                  || '';
+    const marks10th     = d['% marks -10th']                  || '';
+    const board10th     = d['10th board(example: kseeb/cbse/icse)'] ||
+                          d['10th board']                     || '';
+    const marks12th     = d['% marks -12th']                  || '';
+    const board12th     = d['12th board(example: department of pre university/cbse)'] ||
+                          d['12th board']                     || '';
+    const diplomaPct    = d['diploma %']                      || '';
+    const diplomaBoard  = d['diploma board (example: board of technical education etc.. )'] ||
+                          d['diploma board']                  || '';
+    const branch        = d['branch']                         || 'CSE';
+    const cgpa          = parseFloat(d['current cgpa graduation'] || d['cgpa'] || '0') || 0;
+    const ongoingBL     = parseInt(d['number of on going backlogs']  || d['ongoing backlogs'] || '0') || 0;
+    const historyBL     = parseInt(d['number of history of backlogs'] || d['history backlogs'] || '0') || 0;
+    const presentAddr   = d['present address']                || '';
+    const permanentAddr = d['permanent address']              || '';
+    const aadhar        = d['aadhar no']                      || '';
+
+    // Use college email as primary, fallback to personal email
+    const email = collegeEmail || personalEmail;
+
+    if (!name || !usn) {
+      return res.status(400).json({ error: 'Full Name and USN are required' });
+    }
+
+    const usnUpper = usn.toUpperCase().trim();
+
+    // Build student document — store all extra fields in a nested "profile" object
+    const studentData = {
+      name,
+      usn:      usnUpper,
+      branch:   branch.toUpperCase().trim(),
+      year:     4,                // default final year; form doesn't ask year
+      cgpa,
+      backlogs: ongoingBL,        // ongoing backlogs used for placement eligibility
+      email,
+      phone,
+      password: 'student123',
+      // Extended profile fields stored as extra data
+      profile: {
+        gender,
+        personalEmail,
+        collegeEmail,
+        marks10th,
+        board10th,
+        marks12th,
+        board12th,
+        diplomaPct,
+        diplomaBoard,
+        ongoingBacklogs:  ongoingBL,
+        historyBacklogs:  historyBL,
+        presentAddress:   presentAddr,
+        permanentAddress: permanentAddr,
+        aadharNo:         aadhar
+      }
+    };
+
+    // Upsert: update existing student if USN already exists, else create new
+    await Student.findOneAndUpdate(
+      { usn: usnUpper },
+      studentData,
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    console.log(`✅ Form saved: ${name} (${usnUpper}) | CGPA: ${cgpa} | Branch: ${branch}`);
+    res.json({ success: true, message: `${name} (${usnUpper}) saved to database` });
+
+  } catch (e) {
+    console.error('❌ Form submit error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Health check — visit this URL to confirm endpoint is live
+app.get('/api/form-submit', (req, res) => {
+  res.json({ status: 'ok', message: 'PlacementPro form endpoint is live ✅', endpoint: 'POST /api/form-submit' });
 });
 
 // ─── SERVE FRONTEND ───────────────────────────────────────────────────────────
