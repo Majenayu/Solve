@@ -7,7 +7,39 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const https = require('https');
 const { OAuth2Client } = require('google-auth-library');
+
+// ─── OPENROUTER HELPER (works on all Node versions) ──────────────────────────
+function openRouterRequest(body) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(body);
+    const options = {
+      hostname: 'openrouter.ai',
+      path: '/api/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer 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',
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://solve-q7hx.onrender.com',
+        'X-Title': 'PlacementPro Quiz Generator',
+        'Content-Length': Buffer.byteLength(payload)
+      }
+    };
+    const req = https.request(options, (resp) => {
+      let data = '';
+      resp.on('data', chunk => data += chunk);
+      resp.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch(e) { reject(new Error('Invalid JSON from OpenRouter: ' + data.substring(0, 300))); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(60000, () => { req.destroy(); reject(new Error('OpenRouter request timed out')); });
+    req.write(payload);
+    req.end();
+  });
+}
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const app = express();
@@ -342,67 +374,109 @@ app.post('/api/quiz/generate', async (req, res) => {
     if (!categories || !categories.length) return res.status(400).json({ error: 'Categories required' });
 
     const topicList = [...categories, ...(subTopics || [])].join(', ');
-    const prompt = `You are an expert technical interview question creator for campus placements. Generate exactly ${questionCount} unique multiple-choice questions covering: ${topicList}.
+    const prompt = `You are an expert technical interview question creator for campus placements in India. Generate exactly ${questionCount} unique multiple-choice questions covering: ${topicList}.
 
-Requirements:
+Rules:
 - Difficulty: ${difficulty}
-- Each question MUST be unique and different
-- Cover various sub-topics within each selected area
-- Questions should be placement/interview focused
-- Return ONLY valid JSON, no markdown or extra text
+- Each question MUST be completely unique
+- Questions must be placement/campus interview focused
+- Return ONLY a raw JSON object — no markdown, no code fences, no explanation
 
-JSON format:
-{
-  "questions": [
-    {
-      "question": "Question text here?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctAnswer": 0,
-      "topic": "${categories[0]}",
-      "marks": 1
+Required JSON structure (return exactly this, nothing else):
+{"questions":[{"question":"Question text?","options":["Option A","Option B","Option C","Option D"],"correctAnswer":0,"topic":"${categories[0]}","marks":1}]}
+
+correctAnswer is 0-indexed (0=A,1=B,2=C,3=D). Generate all ${questionCount} questions now:`;
+
+    // Try models in order until one works
+    const MODELS = [
+      'meta-llama/llama-3.1-8b-instruct:free',
+      'mistralai/mistral-7b-instruct:free',
+      'google/gemma-2-9b-it:free',
+      'meta-llama/llama-3.2-3b-instruct:free'
+    ];
+
+    let content = '';
+    let lastError = '';
+
+    for (const model of MODELS) {
+      try {
+        console.log(`Trying model: ${model}`);
+        const data = await openRouterRequest({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 4000
+        });
+
+        if (data.error) {
+          lastError = `Model ${model}: ${data.error.message || JSON.stringify(data.error)}`;
+          console.log('Model error:', lastError);
+          continue;
+        }
+
+        content = data.choices?.[0]?.message?.content || '';
+        if (content.trim()) { console.log('Got content from:', model); break; }
+      } catch(e) {
+        lastError = e.message;
+        console.log(`Model ${model} failed:`, e.message);
+      }
     }
-  ]
-}
 
-correctAnswer is 0-indexed (0=A, 1=B, 2=C, 3=D).`;
+    if (!content.trim()) {
+      return res.status(500).json({ error: 'All AI models failed. Last error: ' + lastError });
+    }
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer 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',
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://placementpro.onrender.com',
-        'X-Title': 'PlacementPro Quiz Generator'
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.3-8b-instruct:free',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.8,
-        max_tokens: 4000
-      })
-    });
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    
-    // Parse JSON from response
+    // Robustly extract JSON
     let parsed;
     try {
-      // Extract JSON from potential markdown code blocks
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : content);
+      // Strip markdown code fences if present
+      let cleaned = content.replace(/```json/gi, '').replace(/```/g, '').trim();
+      // Find the JSON object
+      const start = cleaned.indexOf('{');
+      const end = cleaned.lastIndexOf('}');
+      if (start !== -1 && end !== -1) cleaned = cleaned.substring(start, end + 1);
+      parsed = JSON.parse(cleaned);
     } catch(e) {
-      return res.status(500).json({ error: 'Failed to parse AI response', raw: content.substring(0, 500) });
+      console.error('JSON parse failed. Raw content:', content.substring(0, 600));
+      return res.status(500).json({ error: 'AI returned invalid JSON. Please try again.', raw: content.substring(0, 300) });
     }
 
-    res.json({ success: true, questions: parsed.questions || [] });
+    const questions = parsed.questions || [];
+    if (!questions.length) {
+      return res.status(500).json({ error: 'AI returned 0 questions. Please try again.' });
+    }
+
+    // Ensure all questions have required fields
+    const clean = questions.map((q, i) => ({
+      question: q.question || `Question ${i+1}`,
+      options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ['Option A','Option B','Option C','Option D'],
+      correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+      topic: q.topic || categories[0],
+      marks: q.marks || 1
+    }));
+
+    res.json({ success: true, questions: clean });
   } catch(e) {
-    console.error('Quiz gen error:', e.message);
+    console.error('Quiz gen error:', e.stack || e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-// ─── ASSIGNMENT ATTEMPT ROUTES ────────────────────────────────────────────────
+// ─── AI CONNECTION TEST ───────────────────────────────────────────────────────
+app.get('/api/quiz/test', async (req, res) => {
+  try {
+    const data = await openRouterRequest({
+      model: 'meta-llama/llama-3.1-8b-instruct:free',
+      messages: [{ role: 'user', content: 'Say hello in one word.' }],
+      max_tokens: 10
+    });
+    res.json({ success: true, response: data?.choices?.[0]?.message?.content, raw: data });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 app.post('/api/attempts/start', async (req, res) => {
   try {
     const { assessmentId, usn } = req.body;
