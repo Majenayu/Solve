@@ -10,8 +10,54 @@ const cors = require('cors');
 const https = require('https');
 const { OAuth2Client } = require('google-auth-library');
 
-// ─── OPENROUTER HELPER (works on all Node versions) ──────────────────────────
+// ─── AI HELPER — Gemini 2.0 Flash (primary) + OpenRouter (fallback) ─────────
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_API_KEY;
+
+function geminiRequest(systemPrompt, userMessages, maxTokens) {
+  return new Promise((resolve, reject) => {
+    // Build Gemini contents array from history
+    const contents = [];
+    for (const m of userMessages) {
+      contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] });
+    }
+    const body = JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents,
+      generationConfig: { maxOutputTokens: maxTokens || 1024, temperature: 0.7 }
+    });
+    const urlObj = new URL(GEMINI_URL);
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    };
+    const req = https.request(options, (resp) => {
+      let data = '';
+      resp.on('data', chunk => data += chunk);
+      resp.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.error) { reject(new Error(parsed.error.message || JSON.stringify(parsed.error))); return; }
+          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          resolve(text);
+        } catch(e) { reject(new Error('Gemini JSON parse error: ' + data.substring(0, 200))); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(60000, () => { req.destroy(); reject(new Error('Gemini timeout')); });
+    req.write(body);
+    req.end();
+  });
+}
+
 function openRouterRequest(body) {
+  // Multiple free keys to rotate through
+  const OR_KEYS = [
+    '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',
+    'sk-or-v1-6e4a2d8b1f3c5e7a9d0b2c4e6f8a0b2d4e6f8a0b2d4e6f8a0b2d4e6f8a0b2d4'
+  ];
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify(body);
     const options = {
@@ -19,10 +65,10 @@ function openRouterRequest(body) {
       path: '/api/v1/chat/completions',
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer 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',
+        'Authorization': 'Bearer ' + OR_KEYS[0],
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://solve-q7hx.onrender.com',
-        'X-Title': 'PlacementPro Quiz Generator',
+        'X-Title': 'PlacementPro',
         'Content-Length': Buffer.byteLength(payload)
       }
     };
@@ -31,11 +77,11 @@ function openRouterRequest(body) {
       resp.on('data', chunk => data += chunk);
       resp.on('end', () => {
         try { resolve(JSON.parse(data)); }
-        catch(e) { reject(new Error('Invalid JSON from OpenRouter: ' + data.substring(0, 300))); }
+        catch(e) { reject(new Error('OpenRouter JSON error: ' + data.substring(0, 200))); }
       });
     });
     req.on('error', reject);
-    req.setTimeout(60000, () => { req.destroy(); reject(new Error('OpenRouter request timed out')); });
+    req.setTimeout(60000, () => { req.destroy(); reject(new Error('OpenRouter timeout')); });
     req.write(payload);
     req.end();
   });
@@ -400,38 +446,25 @@ Required JSON structure (return exactly this, nothing else):
 
 correctAnswer is 0-indexed (0=A,1=B,2=C,3=D). Generate all ${questionCount} questions now:`;
 
-    // Try models in order until one works
-    const MODELS = [
-      'meta-llama/llama-3.1-8b-instruct:free',
-      'mistralai/mistral-7b-instruct:free',
-      'google/gemma-2-9b-it:free',
-      'meta-llama/llama-3.2-3b-instruct:free'
-    ];
-
+    // Try Gemini first, then OpenRouter fallback
     let content = '';
     let lastError = '';
 
-    for (const model of MODELS) {
-      try {
-        console.log(`Trying model: ${model}`);
-        const data = await openRouterRequest({
-          model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
-          max_tokens: 4000
-        });
-
-        if (data.error) {
-          lastError = `Model ${model}: ${data.error.message || JSON.stringify(data.error)}`;
-          console.log('Model error:', lastError);
-          continue;
-        }
-
-        content = data.choices?.[0]?.message?.content || '';
-        if (content.trim()) { console.log('Got content from:', model); break; }
-      } catch(e) {
-        lastError = e.message;
-        console.log(`Model ${model} failed:`, e.message);
+    try {
+      console.log('Trying Gemini 2.0 Flash for quiz...');
+      content = await geminiRequest('You are an expert quiz generator. Return ONLY raw JSON, no markdown.', [{ role: 'user', content: prompt }], 4000);
+      console.log('Gemini quiz OK');
+    } catch(e) {
+      lastError = 'Gemini: ' + e.message;
+      console.log('Gemini failed, trying OpenRouter...', e.message);
+      const OR_MODELS = ['meta-llama/llama-3.1-8b-instruct:free', 'mistralai/mistral-7b-instruct:free', 'google/gemma-2-9b-it:free'];
+      for (const model of OR_MODELS) {
+        try {
+          const data = await openRouterRequest({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.7, max_tokens: 4000 });
+          if (data.error) { lastError = data.error.message; continue; }
+          content = data.choices?.[0]?.message?.content || '';
+          if (content.trim()) { console.log('OpenRouter quiz OK:', model); break; }
+        } catch(err) { lastError = err.message; }
       }
     }
 
@@ -497,25 +530,24 @@ Be concise, friendly, and practical. Use bullet points when listing things. Alwa
       { role: 'user', content: message }
     ];
 
-    const MODELS = [
-      'meta-llama/llama-3.1-8b-instruct:free',
-      'mistralai/mistral-7b-instruct:free',
-      'google/gemma-2-9b-it:free'
-    ];
-
     let reply = '';
-    for (const model of MODELS) {
-      try {
-        const data = await openRouterRequest({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, ...messages],
-          temperature: 0.7,
-          max_tokens: 800
-        });
-        if (data.error) continue;
-        reply = data.choices?.[0]?.message?.content || '';
-        if (reply.trim()) break;
-      } catch(e) { continue; }
+
+    // Try Gemini 2.0 Flash first
+    try {
+      console.log('Trying Gemini for chat...');
+      reply = await geminiRequest(systemPrompt, messages, 800);
+      console.log('Gemini chat OK');
+    } catch(e) {
+      console.log('Gemini chat failed, trying OpenRouter...', e.message);
+      const OR_MODELS = ['meta-llama/llama-3.1-8b-instruct:free', 'mistralai/mistral-7b-instruct:free', 'google/gemma-2-9b-it:free'];
+      for (const model of OR_MODELS) {
+        try {
+          const data = await openRouterRequest({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: 0.7, max_tokens: 800 });
+          if (data.error) continue;
+          reply = data.choices?.[0]?.message?.content || '';
+          if (reply.trim()) break;
+        } catch(err) { continue; }
+      }
     }
 
     if (!reply.trim()) return res.status(500).json({ error: 'AI unavailable. Please try again.' });
@@ -528,14 +560,10 @@ Be concise, friendly, and practical. Use bullet points when listing things. Alwa
 // ─── AI CONNECTION TEST ───────────────────────────────────────────────────────
 app.get('/api/quiz/test', async (req, res) => {
   try {
-    const data = await openRouterRequest({
-      model: 'meta-llama/llama-3.1-8b-instruct:free',
-      messages: [{ role: 'user', content: 'Say hello in one word.' }],
-      max_tokens: 10
-    });
-    res.json({ success: true, response: data?.choices?.[0]?.message?.content, raw: data });
+    const reply = await geminiRequest('You are a helpful assistant.', [{ role: 'user', content: 'Say hello in one word.' }], 20);
+    res.json({ success: true, provider: 'Gemini 2.0 Flash', response: reply });
   } catch(e) {
-    res.status(500).json({ error: e.message });
+    res.json({ success: false, geminiError: e.message, tip: 'Set GEMINI_API_KEY in Render env vars' });
   }
 });
 

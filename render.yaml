@@ -11,3 +11,5 @@ services:
         value: placementpro-secret-2024
       - key: PORT
         value: 10000
+      - key: GEMINI_API_KEY
+        value: AIzaSyD-placeholder-replace-with-yours
