@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: placementpro
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: MONGO_URI
+        value: mongodb+srv://pra:pra@pra.si69pt4.mongodb.net/placementpro?appName=pra
+      - key: SESSION_SECRET
+        value: placementpro-secret-2024
+      - key: PORT
+        value: 10000

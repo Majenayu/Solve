@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlacementPro – Campus Career Suite</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface2: #1a2236;
+  --border: #1e2d45;
+  --accent: #3b82f6;
+  --accent2: #06b6d4;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --text3: #475569;
+  --grad: linear-gradient(135deg, #3b82f6, #06b6d4);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+code, pre { font-family: 'JetBrains Mono', monospace; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ANIMATIONS */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+.fade-in { animation: fadeIn 0.4s ease forwards; }
+
+/* ===== LOGIN ===== */
+#login-page {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 20% 50%, rgba(59,130,246,0.08) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 50%, rgba(6,182,212,0.08) 0%, transparent 60%),
+              var(--bg);
+}
+.login-container {
+  width: 420px; padding: 48px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+  animation: fadeIn 0.5s ease;
+}
+.login-logo {
+  text-align: center; margin-bottom: 36px;
+}
+.login-logo .icon {
+  width: 64px; height: 64px;
+  background: var(--grad);
+  border-radius: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 28px; margin-bottom: 16px;
+}
+.login-logo h1 { font-size: 26px; font-weight: 700; }
+.login-logo p { color: var(--text2); font-size: 14px; margin-top: 4px; }
+.role-tabs { display: flex; gap: 8px; margin-bottom: 24px; background: var(--surface2); border-radius: 10px; padding: 4px; }
+.role-tab { flex: 1; padding: 10px; text-align: center; border-radius: 7px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text2); transition: all 0.2s; }
+.role-tab.active { background: var(--accent); color: white; }
+.form-group { margin-bottom: 18px; }
+.form-group label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 8px; font-weight: 500; }
+.form-group input, .form-group select {
+  width: 100%; padding: 12px 16px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-family: inherit; font-size: 14px;
+  transition: border-color 0.2s;
+}
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+.btn-primary {
+  width: 100%; padding: 13px;
+  background: var(--grad); border: none; border-radius: 10px;
+  color: white; font-family: inherit; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:active { transform: scale(0.99); }
+.login-hint { text-align: center; margin-top: 16px; font-size: 13px; color: var(--text3); }
+
+/* ===== APP LAYOUT ===== */
+#app { display: none; flex: 1; min-height: 100vh; }
+.sidebar {
+  width: 260px; background: var(--surface); border-right: 1px solid var(--border);
+  position: fixed; top: 0; left: 0; height: 100vh;
+  display: flex; flex-direction: column; overflow-y: auto; z-index: 100;
+}
+.sidebar-logo {
+  padding: 24px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.sidebar-logo .s-icon {
+  width: 40px; height: 40px;
+  background: var(--grad);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.sidebar-logo .s-text h2 { font-size: 16px; font-weight: 700; }
+.sidebar-logo .s-text span { font-size: 11px; color: var(--text2); }
+.nav-section { padding: 16px 12px 8px; }
+.nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); padding: 0 8px; margin-bottom: 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 9px; cursor: pointer;
+  font-size: 14px; color: var(--text2); font-weight: 500;
+  transition: all 0.2s; margin-bottom: 2px;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(59,130,246,0.15); color: var(--accent); }
+.nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+.sidebar-user {
+  margin-top: auto; padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.user-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--grad); display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px;
+}
+.user-info .user-name { font-size: 13px; font-weight: 600; }
+.user-info .user-role { font-size: 11px; color: var(--text2); }
+.logout-btn { margin-left: auto; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; padding: 4px; transition: color 0.2s; }
+.logout-btn:hover { color: var(--danger); }
+
+.main-content { margin-left: 260px; min-height: 100vh; padding: 32px; }
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.3s ease; }
+
+/* TOPBAR */
+.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.topbar h1 { font-size: 24px; font-weight: 700; }
+.topbar .sub { color: var(--text2); font-size: 14px; margin-top: 2px; }
+.btn { padding: 10px 20px; border-radius: 9px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 7px; }
+.btn-accent { background: var(--grad); color: white; }
+.btn-accent:hover { opacity: 0.9; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+.btn-danger { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+.btn-success { background: rgba(16,185,129,0.1); color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+/* STATS CARDS */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 20px 22px; position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--grad);
+}
+.stat-card .stat-icon { font-size: 24px; margin-bottom: 10px; }
+.stat-card .stat-value { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-card .stat-label { font-size: 13px; color: var(--text2); margin-top: 4px; }
+.stat-card .stat-change { font-size: 12px; margin-top: 8px; color: var(--success); }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 20px; }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.card-title { font-size: 16px; font-weight: 600; }
+.card-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+/* TABLE */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); border-bottom: 1px solid var(--border); font-weight: 600; }
+tbody tr { border-bottom: 1px solid rgba(30,45,69,0.5); transition: background 0.15s; }
+tbody tr:hover { background: var(--surface2); }
+tbody td { padding: 12px 14px; color: var(--text2); }
+tbody td:first-child { color: var(--text); font-weight: 500; }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-blue { background: rgba(59,130,246,0.15); color: var(--accent); }
+.badge-green { background: rgba(16,185,129,0.15); color: var(--success); }
+.badge-yellow { background: rgba(245,158,11,0.15); color: var(--warning); }
+.badge-red { background: rgba(239,68,68,0.15); color: var(--danger); }
+.badge-cyan { background: rgba(6,182,212,0.15); color: var(--accent2); }
+
+/* FORM */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group-inline { margin-bottom: 16px; }
+.form-group-inline label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+.form-group-inline input, .form-group-inline select, .form-group-inline textarea {
+  width: 100%; padding: 10px 14px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; color: var(--text); font-family: inherit; font-size: 13px;
+}
+.form-group-inline input:focus, .form-group-inline select:focus, .form-group-inline textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+.form-group-inline textarea { resize: vertical; min-height: 80px; }
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.checkbox-item { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--text2); background: var(--surface2); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); transition: all 0.15s; }
+.checkbox-item:hover { border-color: var(--accent); color: var(--text); }
+.checkbox-item input { accent-color: var(--accent); }
+.checkbox-item.selected { background: rgba(59,130,246,0.1); border-color: var(--accent); color: var(--accent); }
+
+/* MODAL */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  z-index: 1000; align-items: center; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;
+  padding: 32px; animation: fadeIn 0.3s ease;
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.modal-title { font-size: 20px; font-weight: 700; }
+.modal-close { background: none; border: none; color: var(--text3); font-size: 20px; cursor: pointer; padding: 4px; }
+.modal-close:hover { color: var(--text); }
+.modal-footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+
+/* NOTIFICATION TOAST */
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+.toast {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 4px solid var(--accent); border-radius: 12px;
+  padding: 14px 18px; min-width: 280px; max-width: 360px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  animation: slideIn 0.3s ease;
+}
+.toast.success { border-left-color: var(--success); }
+.toast.error { border-left-color: var(--danger); }
+.toast.warning { border-left-color: var(--warning); }
+.toast-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.toast-msg { font-size: 12px; color: var(--text2); }
+
+/* NOTIFICATION PANEL (inline) */
+.notif-item {
+  padding: 14px 16px; border-radius: 10px; margin-bottom: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.notif-item.unread { border-left: 3px solid var(--accent); background: rgba(59,130,246,0.05); }
+.notif-item .notif-title { font-size: 13px; font-weight: 600; }
+.notif-item .notif-msg { font-size: 12px; color: var(--text2); margin-top: 3px; }
+.notif-item .notif-time { font-size: 11px; color: var(--text3); margin-top: 6px; }
+
+/* DRIVE CARD */
+.drive-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 20px; transition: border-color 0.2s;
+  position: relative; overflow: hidden;
+}
+.drive-card:hover { border-color: rgba(59,130,246,0.4); }
+.drive-card .company-name { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
+.drive-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.meta-chip { font-size: 11px; padding: 4px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text2); }
+.meta-chip span { color: var(--text); font-weight: 600; }
+.drive-actions { display: flex; gap: 8px; }
+
+/* ELIGIBLE COUNT */
+.eligible-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2);
+  color: var(--success); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+}
+
+/* RANKING */
+.rank-best { background: rgba(16,185,129,0.1); color: var(--success); border: 1px solid rgba(16,185,129,0.2); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+.rank-better { background: rgba(59,130,246,0.1); color: var(--accent); border: 1px solid rgba(59,130,246,0.2); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+.rank-average { background: rgba(245,158,11,0.1); color: var(--warning); border: 1px solid rgba(245,158,11,0.2); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+
+/* SEARCH */
+.search-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.search-input { flex: 1; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; color: var(--text); font-family: inherit; font-size: 13px; }
+.search-input:focus { outline: none; border-color: var(--accent); }
+
+/* ASSESSMENT */
+.q-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 14px; }
+.q-card .q-num { font-size: 11px; color: var(--text3); margin-bottom: 6px; font-weight: 600; }
+.q-card .q-text { font-size: 14px; font-weight: 500; margin-bottom: 14px; }
+.option-list { display: flex; flex-direction: column; gap: 8px; }
+.option-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+.option-item:hover { border-color: var(--accent); }
+.option-item.selected { border-color: var(--accent); background: rgba(59,130,246,0.1); color: var(--accent); }
+.option-item.correct { border-color: var(--success); background: rgba(16,185,129,0.1); }
+.option-item.wrong { border-color: var(--danger); background: rgba(239,68,68,0.1); }
+
+/* CHART BARS */
+.bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 100px; margin-top: 10px; }
+.bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bar { width: 100%; background: var(--grad); border-radius: 4px 4px 0 0; transition: height 0.6s ease; min-height: 4px; }
+.bar-label { font-size: 10px; color: var(--text3); }
+.bar-val { font-size: 11px; font-weight: 600; color: var(--text2); }
+
+/* PROGRESS */
+.progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.progress-fill { height: 100%; background: var(--grad); border-radius: 3px; transition: width 0.6s ease; }
+
+/* FILE UPLOAD */
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: 12px; padding: 32px;
+  text-align: center; cursor: pointer; transition: border-color 0.2s;
+}
+.upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); }
+.upload-zone .upload-icon { font-size: 32px; margin-bottom: 10px; }
+.upload-zone p { color: var(--text2); font-size: 14px; }
+.upload-zone small { color: var(--text3); font-size: 12px; }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .form-row { grid-template-columns: 1fr; }
+  .sidebar { width: 60px; }
+  .sidebar .s-text, .sidebar .nav-item span:not(.nav-icon), .sidebar-user .user-info { display: none; }
+  .main-content { margin-left: 60px; padding: 16px; }
+}
+
+/* LOADING */
+.loading { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+.empty-state { text-align: center; padding: 48px; color: var(--text3); }
+.empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="login-page">
+  <div class="login-container">
+    <div class="login-logo">
+      <div class="icon">🎓</div>
+      <h1>PlacementPro</h1>
+      <p>Integrated Campus Career Suite</p>
+    </div>
+    <div class="role-tabs">
+      <div class="role-tab active" onclick="setRole('admin')">⚙️ Admin (TPO)</div>
+      <div class="role-tab" onclick="setRole('student')">👨‍💻 Student</div>
+    </div>
+    <div class="form-group">
+      <label id="uname-label">Username</label>
+      <input type="text" id="login-user" placeholder="Enter username / USN" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Sign In →</button>
+    <p class="login-hint">Admin: user = <code>a</code> / pass = <code>a</code></p>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:flex;">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="s-icon">🎓</div>
+      <div class="s-text">
+        <h2>PlacementPro</h2>
+        <span>Campus Career Suite</span>
+      </div>
+    </div>
+
+    <!-- Admin Nav -->
+    <div id="admin-nav">
+      <div class="nav-section">
+        <div class="nav-label">Overview</div>
+        <div class="nav-item active" onclick="showPage('dashboard')">
+          <span class="nav-icon">📊</span><span>Dashboard</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Management</div>
+        <div class="nav-item" onclick="showPage('students')">
+          <span class="nav-icon">👥</span><span>Students</span>
+        </div>
+        <div class="nav-item" onclick="showPage('drives')">
+          <span class="nav-icon">🏢</span><span>Placement Drives</span>
+        </div>
+        <div class="nav-item" onclick="showPage('assessments')">
+          <span class="nav-icon">📝</span><span>Assessments</span>
+        </div>
+        <div class="nav-item" onclick="showPage('shortlist')">
+          <span class="nav-icon">⭐</span><span>Shortlisting</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Student Nav -->
+    <div id="student-nav" style="display:none;">
+      <div class="nav-section">
+        <div class="nav-label">My Portal</div>
+        <div class="nav-item active" onclick="showPage('s-home')">
+          <span class="nav-icon">🏠</span><span>My Dashboard</span>
+        </div>
+        <div class="nav-item" onclick="showPage('s-drives')">
+          <span class="nav-icon">🏢</span><span>My Drives</span>
+        </div>
+        <div class="nav-item" onclick="showPage('s-assessments')">
+          <span class="nav-icon">📝</span><span>Assessments</span>
+        </div>
+        <div class="nav-item" onclick="showPage('s-notifications')">
+          <span class="nav-icon">🔔</span><span>Notifications</span>
+          <span class="nav-badge" id="notif-badge" style="display:none;">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div class="user-info">
+        <div class="user-name" id="user-name">Admin</div>
+        <div class="user-role" id="user-role">TPO</div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()" title="Logout">⇤</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- ===== ADMIN DASHBOARD ===== -->
+    <div class="page active" id="page-dashboard">
+      <div class="topbar">
+        <div>
+          <h1>Dashboard Overview</h1>
+          <div class="sub">Welcome back, TPO Admin</div>
+        </div>
+        <button class="btn btn-accent" onclick="loadDashboardStats()">↻ Refresh</button>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-value" id="s-total">—</div><div class="stat-label">Total Students</div></div>
+        <div class="stat-card"><div class="stat-icon">🏢</div><div class="stat-value" id="s-drives">—</div><div class="stat-label">Placement Drives</div></div>
+        <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value" id="s-placed">—</div><div class="stat-label">Shortlisted</div></div>
+        <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-value" id="s-assess">—</div><div class="stat-label">Assessments</div></div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Branch Distribution</div></div></div>
+          <div id="branch-chart"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Recent Drives</div></div></div>
+          <div id="recent-drives-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== STUDENTS PAGE ===== -->
+    <div class="page" id="page-students">
+      <div class="topbar">
+        <div><h1>Student Database</h1><div class="sub">Manage all student records</div></div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-outline" onclick="showModal('import-modal')">📂 Import CSV</button>
+          <button class="btn btn-accent" onclick="showModal('add-student-modal')">+ Add Student</button>
+        </div>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" type="text" placeholder="🔍 Search by name, USN, branch..." oninput="filterStudents(this.value)">
+        <select class="search-input" style="flex:0;width:160px;" onchange="filterByBranch(this.value)" id="branch-filter">
+          <option value="">All Branches</option>
+          <option>CSE</option><option>ECE</option><option>ME</option><option>CE</option><option>EEE</option><option>ISE</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>USN</th><th>Branch</th><th>Year</th><th>CGPA</th><th>Backlogs</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="students-tbody">
+              <tr><td colspan="7" class="empty-state"><div class="empty-icon">👥</div><p>Loading students...</p></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DRIVES PAGE ===== -->
+    <div class="page" id="page-drives">
+      <div class="topbar">
+        <div><h1>Placement Drives</h1><div class="sub">Manage recruitment drives</div></div>
+        <button class="btn btn-accent" onclick="showModal('add-drive-modal')">+ Create Drive</button>
+      </div>
+      <div id="drives-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;"></div>
+    </div>
+
+    <!-- ===== ASSESSMENTS PAGE ===== -->
+    <div class="page" id="page-assessments">
+      <div class="topbar">
+        <div><h1>Assessments</h1><div class="sub">Create and manage online tests</div></div>
+        <button class="btn btn-accent" onclick="showModal('create-assessment-modal')">+ Create Assessment</button>
+      </div>
+      <div id="assessments-list"></div>
+    </div>
+
+    <!-- ===== SHORTLIST PAGE ===== -->
+    <div class="page" id="page-shortlist">
+      <div class="topbar">
+        <div><h1>Student Ranking & Shortlisting</h1><div class="sub">Rank and classify students per drive</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Select Drive to Shortlist</div></div>
+        </div>
+        <select class="search-input" style="max-width:340px;" id="shortlist-drive-select" onchange="previewShortlist()">
+          <option value="">— Select Drive —</option>
+        </select>
+      </div>
+      <div id="shortlist-preview"></div>
+    </div>
+
+    <!-- ===== STUDENT HOME ===== -->
+    <div class="page" id="page-s-home">
+      <div class="topbar">
+        <div><h1 id="s-welcome-text">My Dashboard</h1><div class="sub" id="s-usn-text">—</div></div>
+      </div>
+      <div class="stats-grid" id="s-stats-grid">
+        <div class="stat-card"><div class="stat-icon">🏢</div><div class="stat-value" id="s-my-drives">—</div><div class="stat-label">Eligible Drives</div></div>
+        <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-value" id="s-my-tests">—</div><div class="stat-label">Tests Available</div></div>
+        <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value" id="s-my-status">—</div><div class="stat-label">Shortlist Status</div></div>
+        <div class="stat-card"><div class="stat-icon">🔔</div><div class="stat-value" id="s-my-notifs">—</div><div class="stat-label">Unread Notifications</div></div>
+      </div>
+      <div class="card" id="s-profile-card"></div>
+    </div>
+
+    <!-- ===== STUDENT DRIVES ===== -->
+    <div class="page" id="page-s-drives">
+      <div class="topbar"><div><h1>My Eligible Drives</h1><div class="sub">Drives you qualify for</div></div></div>
+      <div id="student-drives-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;"></div>
+    </div>
+
+    <!-- ===== STUDENT ASSESSMENTS ===== -->
+    <div class="page" id="page-s-assessments">
+      <div class="topbar"><div><h1>Assessments</h1><div class="sub">Active tests and your scores</div></div></div>
+      <div id="student-assessments-list"></div>
+      <!-- TEST UI -->
+      <div id="test-ui" style="display:none;"></div>
+    </div>
+
+    <!-- ===== STUDENT NOTIFICATIONS ===== -->
+    <div class="page" id="page-s-notifications">
+      <div class="topbar">
+        <div><h1>Notifications</h1><div class="sub">Your alerts and updates</div></div>
+        <button class="btn btn-outline btn-sm" onclick="markAllRead()">✓ Mark All Read</button>
+      </div>
+      <div id="notifications-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Add Student Modal -->
+<div class="modal-overlay" id="add-student-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Student</div>
+      <button class="modal-close" onclick="closeModal('add-student-modal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Full Name *</label><input type="text" id="st-name"></div>
+      <div class="form-group-inline"><label>USN *</label><input type="text" id="st-usn" placeholder="1MS21CS001"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Branch *</label>
+        <select id="st-branch"><option>CSE</option><option>ECE</option><option>ME</option><option>CE</option><option>EEE</option><option>ISE</option></select>
+      </div>
+      <div class="form-group-inline"><label>Year *</label>
+        <select id="st-year"><option>1</option><option>2</option><option>3</option><option selected>4</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>CGPA *</label><input type="number" id="st-cgpa" step="0.01" min="0" max="10"></div>
+      <div class="form-group-inline"><label>Backlogs</label><input type="number" id="st-backlogs" value="0" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Email</label><input type="email" id="st-email"></div>
+      <div class="form-group-inline"><label>Phone</label><input type="text" id="st-phone"></div>
+    </div>
+    <div class="form-group-inline"><label>Password (default: student123)</label><input type="text" id="st-pass" placeholder="student123"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('add-student-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="addStudent()">Add Student</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title">Import Students from CSV</div>
+      <button class="modal-close" onclick="closeModal('import-modal')">✕</button>
+    </div>
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-file').click()">
+      <div class="upload-icon">📁</div>
+      <p>Click to upload CSV / Excel file</p>
+      <small>Required columns: Name, USN, Branch, Year, CGPA, Backlogs</small>
+    </div>
+    <input type="file" id="csv-file" accept=".csv" style="display:none;" onchange="uploadCSV(this)">
+    <div id="import-result" style="margin-top:16px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('import-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Drive Modal -->
+<div class="modal-overlay" id="add-drive-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Create Placement Drive</div>
+      <button class="modal-close" onclick="closeModal('add-drive-modal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Company Name *</label><input type="text" id="dr-company"></div>
+      <div class="form-group-inline"><label>Package (LPA)</label><input type="text" id="dr-package" placeholder="e.g. 8-12 LPA"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Minimum CGPA *</label><input type="number" id="dr-cgpa" step="0.1" min="0" max="10" value="6.0"></div>
+      <div class="form-group-inline"><label>Max Backlogs Allowed</label><input type="number" id="dr-backlogs" value="0" min="0"></div>
+    </div>
+    <div class="form-group-inline">
+      <label>Eligible Branches</label>
+      <div class="checkbox-group" id="dr-branches">
+        <label class="checkbox-item"><input type="checkbox" value="CSE"> CSE</label>
+        <label class="checkbox-item"><input type="checkbox" value="ECE"> ECE</label>
+        <label class="checkbox-item"><input type="checkbox" value="ME"> ME</label>
+        <label class="checkbox-item"><input type="checkbox" value="CE"> CE</label>
+        <label class="checkbox-item"><input type="checkbox" value="EEE"> EEE</label>
+        <label class="checkbox-item"><input type="checkbox" value="ISE"> ISE</label>
+      </div>
+    </div>
+    <div class="form-group-inline">
+      <label>Eligible Year</label>
+      <div class="checkbox-group">
+        <label class="checkbox-item"><input type="checkbox" value="1"> 1st Year</label>
+        <label class="checkbox-item"><input type="checkbox" value="2"> 2nd Year</label>
+        <label class="checkbox-item"><input type="checkbox" value="3"> 3rd Year</label>
+        <label class="checkbox-item"><input type="checkbox" value="4" checked> 4th Year</label>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Drive Date</label><input type="date" id="dr-date"></div>
+      <div class="form-group-inline"><label>Location</label><input type="text" id="dr-location"></div>
+    </div>
+    <div class="form-group-inline"><label>Description</label><textarea id="dr-desc" placeholder="Brief about the company and role..."></textarea></div>
+    <div id="eligible-preview" style="margin-top:12px;display:none;">
+      <div class="eligible-badge"><span id="eligible-count">0</span> eligible students</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="previewEligible()">👁 Preview Eligible</button>
+      <button class="btn btn-outline" onclick="closeModal('add-drive-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="createDrive()">Create Drive</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Assessment Modal -->
+<div class="modal-overlay" id="create-assessment-modal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <div class="modal-title">Create Assessment</div>
+      <button class="modal-close" onclick="closeModal('create-assessment-modal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Title *</label><input type="text" id="as-title" placeholder="e.g. TCS Aptitude Round 1"></div>
+      <div class="form-group-inline"><label>Type *</label>
+        <select id="as-type"><option>Aptitude</option><option>Technical</option><option>Coding</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Time Limit (minutes)</label><input type="number" id="as-time" value="30" min="5"></div>
+      <div class="form-group-inline"><label>Linked Drive (optional)</label>
+        <select id="as-drive"><option value="">None</option></select>
+      </div>
+    </div>
+    <div id="questions-container"></div>
+    <button class="btn btn-outline" style="margin-top:12px;" onclick="addQuestion()">+ Add Question</button>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('create-assessment-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="createAssessment()">Create Assessment</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+let currentUser = null;
+let allStudents = [];
+let allDrives = [];
+let allAssessments = [];
+let notifPollInterval = null;
+
+// ===== API =====
+const api = async (method, path, body) => {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  return res.json();
+};
+
+// ===== TOAST =====
+function showToast(title, msg, type = 'info') {
+  const tc = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`;
+  tc.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(100%)'; t.style.transition = '0.3s'; setTimeout(() => t.remove(), 300); }, 4000);
+}
+
+// ===== LOGIN =====
+let loginRole = 'admin';
+function setRole(role) {
+  loginRole = role;
+  document.querySelectorAll('.role-tab').forEach((t, i) => t.classList.toggle('active', (role === 'admin' && i === 0) || (role === 'student' && i === 1)));
+  document.getElementById('uname-label').textContent = role === 'admin' ? 'Username' : 'USN (e.g. 1MS21CS001)';
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  if (!username || !password) { showToast('Error', 'Please fill all fields', 'error'); return; }
+  const res = await api('POST', '/api/auth/login', { username, password, role: loginRole });
+  if (res.success) {
+    if (res.role === 'admin') {
+      window.location.href = '/dashboard';
+      return;
+    }
+    currentUser = { ...res, username };
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    setupUser(res);
+  } else {
+    showToast('Login Failed', res.error, 'error');
+  }
+}
+
+function setupUser(res) {
+  if (res.role === 'admin') {
+    document.getElementById('admin-nav').style.display = '';
+    document.getElementById('student-nav').style.display = 'none';
+    document.getElementById('user-avatar').textContent = 'A';
+    document.getElementById('user-name').textContent = 'TPO Admin';
+    document.getElementById('user-role').textContent = 'Administrator';
+    showPage('dashboard');
+    loadDashboardStats();
+  } else {
+    document.getElementById('admin-nav').style.display = 'none';
+    document.getElementById('student-nav').style.display = '';
+    document.getElementById('user-avatar').textContent = res.name ? res.name[0].toUpperCase() : 'S';
+    document.getElementById('user-name').textContent = res.name;
+    document.getElementById('user-role').textContent = currentUser.username;
+    showPage('s-home');
+    loadStudentHome();
+    startNotifPoll();
+  }
+}
+
+async function doLogout() {
+  await api('POST', '/api/auth/logout');
+  clearInterval(notifPollInterval);
+  currentUser = null;
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// ===== NAVIGATION =====
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${id}`)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => { if (n.getAttribute('onclick')?.includes(id)) n.classList.add('active'); });
+
+  // Load data for page
+  if (id === 'students') loadStudents();
+  if (id === 'drives') loadDrives();
+  if (id === 'assessments') loadAssessments();
+  if (id === 'shortlist') loadShortlistPage();
+  if (id === 's-drives') loadStudentDrives();
+  if (id === 's-assessments') loadStudentAssessments();
+  if (id === 's-notifications') loadNotifications();
+}
+
+// ===== DASHBOARD =====
+async function loadDashboardStats() {
+  const data = await api('GET', '/api/dashboard/stats');
+  document.getElementById('s-total').textContent = data.totalStudents || 0;
+  document.getElementById('s-drives').textContent = data.totalDrives || 0;
+  document.getElementById('s-placed').textContent = data.placedStudents || 0;
+  document.getElementById('s-assess').textContent = data.totalAssessments || 0;
+
+  // Branch chart
+  const chartEl = document.getElementById('branch-chart');
+  if (data.branchStats && data.branchStats.length > 0) {
+    const max = Math.max(...data.branchStats.map(b => b.count));
+    chartEl.innerHTML = `<div class="bar-chart">` + data.branchStats.slice(0, 6).map(b => `
+      <div class="bar-wrap">
+        <div class="bar-val">${b.count}</div>
+        <div class="bar" style="height:${Math.round((b.count / max) * 80)}px;"></div>
+        <div class="bar-label">${b._id}</div>
+      </div>`).join('') + `</div>`;
+  } else {
+    chartEl.innerHTML = `<div class="empty-state"><p>No branch data yet</p></div>`;
+  }
+
+  // Recent drives
+  const rdEl = document.getElementById('recent-drives-list');
+  if (data.recentDrives && data.recentDrives.length > 0) {
+    rdEl.innerHTML = data.recentDrives.map(d => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:14px;font-weight:600;">${d.companyName}</div>
+          <div style="font-size:12px;color:var(--text2);">CGPA ≥ ${d.minCGPA} · ${d.eligibleBranches.join(', ') || 'All Branches'}</div>
+        </div>
+        <span class="badge badge-${d.status === 'active' ? 'green' : 'blue'}">${d.status}</span>
+      </div>`).join('');
+  } else {
+    rdEl.innerHTML = `<div class="empty-state"><p>No drives created yet</p></div>`;
+  }
+}
+
+// ===== STUDENTS =====
+async function loadStudents() {
+  allStudents = await api('GET', '/api/students');
+  renderStudents(allStudents);
+}
+function renderStudents(students) {
+  const tbody = document.getElementById('students-tbody');
+  if (!students.length) { tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><p>No students found</p></div></td></tr>`; return; }
+  tbody.innerHTML = students.map(s => `
+    <tr>
+      <td>${s.name}</td>
+      <td><code style="font-size:12px;">${s.usn}</code></td>
+      <td><span class="badge badge-blue">${s.branch}</span></td>
+      <td>Year ${s.year}</td>
+      <td><strong style="color:${s.cgpa >= 8 ? 'var(--success)' : s.cgpa >= 6 ? 'var(--text)' : 'var(--danger)'}">${s.cgpa}</strong></td>
+      <td><span class="${s.backlogs === 0 ? 'badge badge-green' : 'badge badge-red'}">${s.backlogs}</span></td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s._id}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+function filterStudents(q) {
+  const f = allStudents.filter(s => s.name.toLowerCase().includes(q.toLowerCase()) || s.usn.toLowerCase().includes(q.toLowerCase()) || s.branch.toLowerCase().includes(q.toLowerCase()));
+  renderStudents(f);
+}
+function filterByBranch(branch) {
+  const f = branch ? allStudents.filter(s => s.branch === branch) : allStudents;
+  renderStudents(f);
+}
+async function addStudent() {
+  const data = {
+    name: document.getElementById('st-name').value,
+    usn: document.getElementById('st-usn').value.toUpperCase(),
+    branch: document.getElementById('st-branch').value,
+    year: parseInt(document.getElementById('st-year').value),
+    cgpa: parseFloat(document.getElementById('st-cgpa').value),
+    backlogs: parseInt(document.getElementById('st-backlogs').value) || 0,
+    email: document.getElementById('st-email').value,
+    phone: document.getElementById('st-phone').value,
+    password: document.getElementById('st-pass').value || 'student123'
+  };
+  if (!data.name || !data.usn || !data.cgpa) { showToast('Error', 'Name, USN and CGPA are required', 'error'); return; }
+  const res = await api('POST', '/api/students', data);
+  if (res.success) { showToast('Success', 'Student added!', 'success'); closeModal('add-student-modal'); loadStudents(); }
+  else showToast('Error', res.error, 'error');
+}
+async function deleteStudent(id) {
+  if (!confirm('Delete this student?')) return;
+  await api('DELETE', `/api/students/${id}`);
+  showToast('Deleted', 'Student removed', 'success');
+  loadStudents();
+}
+async function uploadCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  document.getElementById('import-result').innerHTML = `<div style="color:var(--text2);font-size:13px;">Importing... <span class="loading"></span></div>`;
+  const res = await fetch('/api/students/import', { method: 'POST', body: formData });
+  const data = await res.json();
+  if (data.success) {
+    document.getElementById('import-result').innerHTML = `<div class="badge badge-green" style="font-size:13px;padding:8px 14px;">✓ Imported ${data.added} students (${data.skipped} skipped)</div>`;
+    showToast('Import Complete', `${data.added} students imported!`, 'success');
+    loadStudents();
+  } else {
+    document.getElementById('import-result').innerHTML = `<div class="badge badge-red">${data.error}</div>`;
+  }
+}
+
+// ===== DRIVES =====
+async function loadDrives() {
+  allDrives = await api('GET', '/api/drives');
+  const grid = document.getElementById('drives-grid');
+  if (!allDrives.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><p>No drives created yet</p></div>`; return; }
+  grid.innerHTML = allDrives.map(d => `
+    <div class="drive-card">
+      <div class="company-name">🏢 ${d.companyName}</div>
+      <div class="drive-meta">
+        <div class="meta-chip">CGPA ≥ <span>${d.minCGPA}</span></div>
+        <div class="meta-chip">Backlogs ≤ <span>${d.maxBacklogs}</span></div>
+        ${d.package ? `<div class="meta-chip">💰 <span>${d.package}</span></div>` : ''}
+        <div class="meta-chip">${d.eligibleBranches.join(', ') || 'All Branches'}</div>
+        <span class="badge badge-${d.status === 'active' ? 'green' : d.status === 'completed' ? 'cyan' : 'blue'}">${d.status}</span>
+      </div>
+      ${d.description ? `<p style="font-size:12px;color:var(--text2);margin-bottom:12px;">${d.description}</p>` : ''}
+      <div class="eligible-badge" style="margin-bottom:14px;font-size:12px;">👥 ${d.eligibleCount} eligible students</div>
+      <div class="drive-actions">
+        <button class="btn btn-accent btn-sm" onclick="notifyDrive('${d._id}','${d.companyName}')">🔔 Notify</button>
+        <button class="btn btn-success btn-sm" onclick="shortlistDrive('${d._id}','${d.companyName}')">⭐ Shortlist</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleDriveStatus('${d._id}','${d.status}')">
+          ${d.status === 'upcoming' ? '▶ Activate' : d.status === 'active' ? '⏹ Complete' : '✓ Done'}
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="deleteDrive('${d._id}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+async function previewEligible() {
+  const branches = [...document.querySelectorAll('#dr-branches input:checked')].map(c => c.value);
+  const years = [...document.querySelectorAll('#add-drive-modal input[value="1"],#add-drive-modal input[value="2"],#add-drive-modal input[value="3"],#add-drive-modal input[value="4"]')].filter(c => c.checked).map(c => parseInt(c.value));
+  const data = {
+    minCGPA: parseFloat(document.getElementById('dr-cgpa').value) || 0,
+    maxBacklogs: parseInt(document.getElementById('dr-backlogs').value) || 0,
+    eligibleBranches: branches,
+    eligibleYear: years
+  };
+  const res = await api('POST', '/api/students/eligible', data);
+  document.getElementById('eligible-count').textContent = res.count;
+  document.getElementById('eligible-preview').style.display = 'block';
+}
+
+async function createDrive() {
+  const branches = [...document.querySelectorAll('#dr-branches input:checked')].map(c => c.value);
+  const years = [...document.querySelectorAll('#add-drive-modal input[value="1"],#add-drive-modal input[value="2"],#add-drive-modal input[value="3"],#add-drive-modal input[value="4"]')].filter(c => c.checked).map(c => parseInt(c.value));
+  const data = {
+    companyName: document.getElementById('dr-company').value,
+    package: document.getElementById('dr-package').value,
+    minCGPA: parseFloat(document.getElementById('dr-cgpa').value),
+    maxBacklogs: parseInt(document.getElementById('dr-backlogs').value) || 0,
+    eligibleBranches: branches,
+    eligibleYear: years,
+    driveDate: document.getElementById('dr-date').value,
+    location: document.getElementById('dr-location').value,
+    description: document.getElementById('dr-desc').value
+  };
+  if (!data.companyName || !data.minCGPA) { showToast('Error', 'Company name and CGPA required', 'error'); return; }
+  const res = await api('POST', '/api/drives', data);
+  if (res.success) {
+    showToast('Drive Created!', `${data.companyName} - ${res.eligibleCount} students eligible`, 'success');
+    closeModal('add-drive-modal');
+    loadDrives();
+  } else showToast('Error', res.error, 'error');
+}
+
+async function notifyDrive(id, name) {
+  const res = await api('POST', `/api/drives/${id}/notify`);
+  if (res.success) showToast('Notified!', `${res.notified} students notified for ${name}`, 'success');
+  else showToast('Error', res.error, 'error');
+}
+
+async function shortlistDrive(id, name) {
+  const res = await api('POST', `/api/drives/${id}/shortlist`);
+  if (res.success) showToast('Shortlisted!', `${res.shortlisted} students ranked for ${name}`, 'success');
+  else showToast('Error', res.error, 'error');
+}
+
+async function deleteDrive(id) {
+  if (!confirm('Delete this drive?')) return;
+  await api('DELETE', `/api/drives/${id}`);
+  showToast('Deleted', 'Drive removed', 'success');
+  loadDrives();
+}
+
+async function toggleDriveStatus(id, status) {
+  const next = status === 'upcoming' ? 'active' : 'completed';
+  await api('PUT', `/api/drives/${id}`, { status: next });
+  loadDrives();
+}
+
+// ===== ASSESSMENTS =====
+let questionCount = 0;
+function addQuestion() {
+  const qc = document.getElementById('questions-container');
+  const idx = questionCount++;
+  const div = document.createElement('div');
+  div.className = 'q-card';
+  div.id = `q-${idx}`;
+  div.innerHTML = `
+    <div class="q-num">Question ${idx + 1} <button class="btn btn-danger btn-sm" style="float:right;" onclick="document.getElementById('q-${idx}').remove()">Remove</button></div>
+    <div class="form-group-inline"><label>Question Text *</label><input type="text" id="q-text-${idx}" placeholder="Enter question..."></div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Option A</label><input type="text" id="q-opt-${idx}-0"></div>
+      <div class="form-group-inline"><label>Option B</label><input type="text" id="q-opt-${idx}-1"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Option C</label><input type="text" id="q-opt-${idx}-2"></div>
+      <div class="form-group-inline"><label>Option D</label><input type="text" id="q-opt-${idx}-3"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inline"><label>Correct Answer (0=A, 1=B, 2=C, 3=D)</label><input type="number" id="q-ans-${idx}" min="0" max="3" value="0"></div>
+      <div class="form-group-inline"><label>Marks</label><input type="number" id="q-marks-${idx}" value="1" min="1"></div>
+    </div>`;
+  qc.appendChild(div);
+}
+
+async function loadAssessments() {
+  allAssessments = await api('GET', '/api/assessments');
+  const el = document.getElementById('assessments-list');
+  if (!allAssessments.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>No assessments created yet</p></div>`; return; }
+  el.innerHTML = allAssessments.map(a => `
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${a.title}</div>
+          <div class="card-sub"><span class="badge badge-blue">${a.type}</span> &nbsp; ${a.questions?.length || 0} questions &nbsp; · &nbsp; ${a.timeLimit} min &nbsp; · &nbsp; ${a.totalMarks} marks</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn ${a.isActive ? 'btn-success' : 'btn-outline'} btn-sm" onclick="toggleAssessment('${a._id}')">
+            ${a.isActive ? '🟢 Active' : '⭘ Inactive'}
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAssessment('${a._id}')">Delete</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function createAssessment() {
+  const questions = [];
+  document.querySelectorAll('#questions-container .q-card').forEach((el, i) => {
+    const idx = el.id.replace('q-', '');
+    questions.push({
+      question: document.getElementById(`q-text-${idx}`).value,
+      options: [0,1,2,3].map(j => document.getElementById(`q-opt-${idx}-${j}`)?.value || ''),
+      correctAnswer: parseInt(document.getElementById(`q-ans-${idx}`).value),
+      marks: parseInt(document.getElementById(`q-marks-${idx}`).value) || 1
+    });
+  });
+  if (!questions.length) { showToast('Error', 'Add at least one question', 'error'); return; }
+  const data = {
+    title: document.getElementById('as-title').value,
+    type: document.getElementById('as-type').value,
+    timeLimit: parseInt(document.getElementById('as-time').value),
+    driveId: document.getElementById('as-drive').value || null,
+    questions
+  };
+  const res = await api('POST', '/api/assessments', data);
+  if (res.success) {
+    showToast('Created!', 'Assessment created successfully', 'success');
+    closeModal('create-assessment-modal');
+    document.getElementById('questions-container').innerHTML = '';
+    questionCount = 0;
+    loadAssessments();
+  } else showToast('Error', res.error, 'error');
+}
+
+async function toggleAssessment(id) {
+  const res = await api('PUT', `/api/assessments/${id}/toggle`);
+  showToast(res.isActive ? 'Activated' : 'Deactivated', 'Assessment status updated', 'success');
+  loadAssessments();
+}
+
+async function deleteAssessment(id) {
+  if (!confirm('Delete this assessment?')) return;
+  await api('DELETE', `/api/assessments/${id}`);
+  loadAssessments();
+}
+
+// ===== SHORTLIST PAGE =====
+async function loadShortlistPage() {
+  const drives = await api('GET', '/api/drives');
+  const sel = document.getElementById('shortlist-drive-select');
+  sel.innerHTML = '<option value="">— Select Drive —</option>' + drives.map(d => `<option value="${d._id}">${d.companyName}</option>`).join('');
+}
+
+async function previewShortlist() {
+  const driveId = document.getElementById('shortlist-drive-select').value;
+  if (!driveId) { document.getElementById('shortlist-preview').innerHTML = ''; return; }
+  const drives = await api('GET', '/api/drives');
+  const drive = drives.find(d => d._id === driveId);
+  if (!drive) return;
+  const res = await api('POST', '/api/students/eligible', { minCGPA: drive.minCGPA, maxBacklogs: drive.maxBacklogs, eligibleBranches: drive.eligibleBranches, eligibleYear: drive.eligibleYear });
+  
+  const ranked = res.students.map(s => {
+    let score = s.cgpa * 10;
+    const as = s.assessmentScores?.[0];
+    if (as && as.maxScore > 0) score += (as.score / as.maxScore) * 30;
+    const ranking = score >= 90 ? 'Best' : score >= 70 ? 'Better' : 'Average';
+    return { ...s, score: Math.round(score), ranking };
+  }).sort((a, b) => b.score - a.score);
+
+  document.getElementById('shortlist-preview').innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">Eligible Students for ${drive.companyName}</div><div class="card-sub">${ranked.length} students ranked</div></div>
+        <button class="btn btn-accent" onclick="shortlistDrive('${driveId}','${drive.companyName}')">⭐ Confirm Shortlist & Notify</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Rank</th><th>Name</th><th>USN</th><th>Branch</th><th>CGPA</th><th>Score</th><th>Classification</th></tr></thead>
+          <tbody>
+            ${ranked.map((s, i) => `
+              <tr>
+                <td>#${i + 1}</td>
+                <td>${s.name}</td>
+                <td><code style="font-size:12px;">${s.usn}</code></td>
+                <td>${s.branch}</td>
+                <td>${s.cgpa}</td>
+                <td>${s.score}</td>
+                <td><span class="rank-${s.ranking.toLowerCase()}">${s.ranking}</span></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ===== STUDENT HOME =====
+async function loadStudentHome() {
+  const usn = currentUser.username;
+  document.getElementById('s-welcome-text').textContent = `Welcome, ${currentUser.name}`;
+  document.getElementById('s-usn-text').textContent = usn;
+  
+  const student = await api('GET', `/api/students/me/${usn}`);
+  if (!student) return;
+
+  const drives = await api('GET', `/api/drives/student/${usn}`);
+  const assessments = await api('GET', '/api/assessments');
+  const notifs = await api('GET', `/api/notifications/${usn}`);
+  const unread = notifs.filter ? notifs.filter(n => !n.isRead).length : 0;
+  const active = assessments.filter ? assessments.filter(a => a.isActive).length : 0;
+  const shortlisted = student.driveApplications?.filter(d => d.status === 'shortlisted').length || 0;
+
+  document.getElementById('s-my-drives').textContent = drives.length || 0;
+  document.getElementById('s-my-tests').textContent = active;
+  document.getElementById('s-my-status').textContent = shortlisted ? 'Shortlisted' : 'Pending';
+  document.getElementById('s-my-notifs').textContent = unread;
+  updateNotifBadge(unread);
+
+  document.getElementById('s-profile-card').innerHTML = `
+    <div class="card-header"><div class="card-title">My Profile</div></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+      <div><div style="font-size:11px;color:var(--text3);">FULL NAME</div><div style="font-weight:600;margin-top:4px;">${student.name}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);">USN</div><div style="font-weight:600;margin-top:4px;"><code>${student.usn}</code></div></div>
+      <div><div style="font-size:11px;color:var(--text3);">BRANCH</div><div style="font-weight:600;margin-top:4px;">${student.branch}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);">YEAR</div><div style="font-weight:600;margin-top:4px;">Year ${student.year}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);">CGPA</div><div style="font-weight:600;margin-top:4px;color:var(--success);">${student.cgpa}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);">BACKLOGS</div><div style="font-weight:600;margin-top:4px;">${student.backlogs}</div></div>
+    </div>`;
+}
+
+async function loadStudentDrives() {
+  const usn = currentUser.username;
+  const drives = await api('GET', `/api/drives/student/${usn}`);
+  const grid = document.getElementById('student-drives-grid');
+  if (!drives.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><p>No eligible drives at this time</p></div>`; return; }
+  grid.innerHTML = drives.map(d => `
+    <div class="drive-card">
+      <div class="company-name">🏢 ${d.companyName}</div>
+      <div class="drive-meta">
+        <div class="meta-chip">Min CGPA: <span>${d.minCGPA}</span></div>
+        ${d.package ? `<div class="meta-chip">💰 <span>${d.package}</span></div>` : ''}
+        <span class="badge badge-green">✓ Eligible</span>
+      </div>
+      ${d.description ? `<p style="font-size:12px;color:var(--text2);">${d.description}</p>` : ''}
+    </div>`).join('');
+}
+
+// ===== STUDENT ASSESSMENTS =====
+async function loadStudentAssessments() {
+  const assessments = await api('GET', '/api/assessments');
+  const active = assessments.filter ? assessments.filter(a => a.isActive) : [];
+  const el = document.getElementById('student-assessments-list');
+  if (!active.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>No active assessments at this time</p></div>`; return; }
+  el.innerHTML = active.map(a => `
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${a.title}</div>
+          <div class="card-sub"><span class="badge badge-blue">${a.type}</span> &nbsp; ${a.questions?.length || 0} questions &nbsp; · &nbsp; ${a.timeLimit} min &nbsp; · &nbsp; ${a.totalMarks} marks</div>
+        </div>
+        <button class="btn btn-accent" onclick="startTest('${a._id}')">Start Test →</button>
+      </div>
+    </div>`).join('');
+}
+
+let testTimer, testAnswers = {}, testId, testData;
+async function startTest(id) {
+  const data = await api('GET', `/api/assessments/${id}/take`);
+  if (data.error) { showToast('Error', data.error, 'error'); return; }
+  testId = id; testData = data; testAnswers = {};
+  document.getElementById('student-assessments-list').style.display = 'none';
+  const ui = document.getElementById('test-ui');
+  ui.style.display = 'block';
+  let timeLeft = data.timeLimit * 60;
+  
+  function renderTest() {
+    const mins = Math.floor(timeLeft / 60), secs = timeLeft % 60;
+    ui.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <h2>${data.title}</h2>
+        <div style="background:var(--surface2);padding:8px 16px;border-radius:8px;font-family:monospace;font-size:18px;color:${timeLeft < 60 ? 'var(--danger)' : 'var(--text)'}">
+          ⏱ ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}
+        </div>
+      </div>
+      ${data.questions.map((q, qi) => `
+        <div class="q-card">
+          <div class="q-num">Question ${qi + 1} of ${data.questions.length} · ${q.marks} mark${q.marks > 1 ? 's' : ''}</div>
+          <div class="q-text">${q.question}</div>
+          <div class="option-list">
+            ${q.options.map((opt, oi) => `
+              <div class="option-item ${testAnswers[qi] === oi ? 'selected' : ''}" onclick="selectAnswer(${qi}, ${oi})">
+                <span style="font-weight:700;color:var(--accent);">${'ABCD'[oi]}.</span> ${opt}
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:20px;">
+        <button class="btn btn-outline" onclick="cancelTest()">Cancel</button>
+        <button class="btn btn-accent" onclick="submitTest()">Submit Test ✓</button>
+      </div>`;
+  }
+  
+  renderTest();
+  testTimer = setInterval(() => {
+    timeLeft--;
+    const timer = ui.querySelector('div[style*="font-family:monospace"]');
+    if (timer) { const m = Math.floor(timeLeft/60), s = timeLeft%60; timer.textContent = `⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; timer.style.color = timeLeft < 60 ? 'var(--danger)' : 'var(--text)'; }
+    if (timeLeft <= 0) { clearInterval(testTimer); submitTest(); }
+  }, 1000);
+}
+
+function selectAnswer(qi, oi) {
+  testAnswers[qi] = oi;
+  document.querySelectorAll(`#test-ui .q-card:nth-child(${qi + 2}) .option-item`).forEach((el, i) => el.classList.toggle('selected', i === oi));
+}
+
+async function submitTest() {
+  clearInterval(testTimer);
+  const res = await api('POST', `/api/assessments/${testId}/submit`, { usn: currentUser.username, answers: testAnswers });
+  document.getElementById('test-ui').innerHTML = `
+    <div class="card" style="text-align:center;padding:48px;">
+      <div style="font-size:48px;margin-bottom:16px;">🎉</div>
+      <h2 style="margin-bottom:8px;">Test Submitted!</h2>
+      <p style="color:var(--text2);margin-bottom:24px;">Your response has been recorded.</p>
+      <div style="display:flex;justify-content:center;gap:32px;margin-bottom:24px;">
+        <div><div style="font-size:36px;font-weight:700;color:var(--success);">${res.score}</div><div style="color:var(--text2);font-size:13px;">Score</div></div>
+        <div><div style="font-size:36px;font-weight:700;">${res.maxScore}</div><div style="color:var(--text2);font-size:13px;">Max Score</div></div>
+        <div><div style="font-size:36px;font-weight:700;color:var(--accent);">${res.percentage}%</div><div style="color:var(--text2);font-size:13px;">Percentage</div></div>
+      </div>
+      <button class="btn btn-accent" onclick="cancelTest()">Back to Assessments</button>
+    </div>`;
+}
+
+function cancelTest() {
+  clearInterval(testTimer);
+  document.getElementById('test-ui').style.display = 'none';
+  document.getElementById('student-assessments-list').style.display = 'block';
+}
+
+// ===== NOTIFICATIONS =====
+async function loadNotifications() {
+  const notifs = await api('GET', `/api/notifications/${currentUser.username}`);
+  const el = document.getElementById('notifications-list');
+  if (!notifs.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">🔔</div><p>No notifications yet</p></div>`; return; }
+  el.innerHTML = notifs.map(n => `
+    <div class="notif-item ${n.isRead ? '' : 'unread'}" onclick="markRead('${n._id}', this)">
+      <div class="notif-title">${n.title}</div>
+      <div class="notif-msg">${n.message}</div>
+      <div class="notif-time">${new Date(n.createdAt).toLocaleString()}</div>
+    </div>`).join('');
+}
+
+async function markRead(id, el) {
+  await api('PUT', `/api/notifications/${id}/read`);
+  el.classList.remove('unread');
+}
+
+async function markAllRead() {
+  await api('PUT', `/api/notifications/markall/${currentUser.username}`);
+  loadNotifications();
+  updateNotifBadge(0);
+}
+
+function updateNotifBadge(count) {
+  const badge = document.getElementById('notif-badge');
+  if (count > 0) { badge.textContent = count; badge.style.display = ''; }
+  else badge.style.display = 'none';
+}
+
+function startNotifPoll() {
+  notifPollInterval = setInterval(async () => {
+    const notifs = await api('GET', `/api/notifications/${currentUser.username}`);
+    const unread = notifs.filter ? notifs.filter(n => !n.isRead).length : 0;
+    updateNotifBadge(unread);
+  }, 15000);
+}
+
+// ===== MODAL HELPERS =====
+function showModal(id) {
+  document.getElementById(id).classList.add('show');
+  // Populate drive list in assessment modal
+  if (id === 'create-assessment-modal') {
+    api('GET', '/api/drives').then(drives => {
+      document.getElementById('as-drive').innerHTML = '<option value="">None</option>' + (drives.map ? drives.map(d => `<option value="${d._id}">${d.companyName}</option>`).join('') : '');
+    });
+  }
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); }));
+</script>
+</body>
+</html>

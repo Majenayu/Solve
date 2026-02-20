@@ -1,0 +1,31 @@
+{
+  "name": "placementpro",
+  "version": "1.0.0",
+  "description": "PlacementPro - Integrated Campus Career Suite",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.22.1",
+    "express-session": "^1.17.3",
+    "mongoose": "^7.8.9",
+    "multer": "^1.4.5-lts.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Majenayu/Solve.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Majenayu/Solve/issues"
+  },
+  "homepage": "https://github.com/Majenayu/Solve#readme"
+}
