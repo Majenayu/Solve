@@ -1191,17 +1191,165 @@ async function loadAssessments() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// QUIZ ENGINE
+// QUIZ ENGINE WITH ANTI-MALPRACTICE
 // ═══════════════════════════════════════════════════════════
+let currentAttemptId = null;
+let warningCount = 0;
+let isMalpractice = false;
+let quizActive = false;
+let visibilityHandler = null;
+let beforeUnloadHandler = null;
+let focusHandler = null;
+let fullscreenWarned = false;
+
 async function startQuiz(id) {
   const el = document.getElementById('quiz-wrap');
   el.innerHTML = '<div class="empty"><div class="e-icon"><div class="loader"></div></div><p>Loading assessment…</p></div>';
   go('quiz');
   const data = await api('GET', `/api/assessments/${id}/take`);
   if (!data || data.error) { el.innerHTML = `<div class="empty"><div class="e-icon">❌</div><p>${data?.error || 'Failed to load'}</p></div>`; return; }
+  
+  // Start attempt on server
+  const attemptRes = await api('POST', '/api/attempts/start', { assessmentId: id, usn: currentUser.username });
+  if (attemptRes.attempt && (attemptRes.attempt.status === 'submitted' || attemptRes.attempt.status === 'malpractice')) {
+    el.innerHTML = `<div class="empty"><div class="e-icon">⛔</div><p>You have already ${attemptRes.attempt.status === 'malpractice' ? 'been flagged for malpractice' : 'submitted this assessment'}</p></div>`;
+    return;
+  }
+  currentAttemptId = attemptRes.attempt?._id || null;
+  warningCount = 0;
+  isMalpractice = false;
+  quizActive = true;
+  
   currentQuiz = { ...data, id, started: Date.now() };
   quizAnswers = {};
   renderQuiz();
+  attachMalpracticeListeners();
+  
+  // Request fullscreen for better proctoring
+  try { document.documentElement.requestFullscreen().catch(()=>{}); } catch(e) {}
+}
+
+function attachMalpracticeListeners() {
+  // Tab/window visibility change
+  visibilityHandler = async () => {
+    if (!quizActive) return;
+    if (document.hidden) {
+      await handleViolation('Tab switch / window hidden detected');
+    }
+  };
+  
+  // Window blur (switched to another app)
+  focusHandler = async () => {
+    if (!quizActive) return;
+    await handleViolation('Window lost focus detected');
+  };
+  
+  // Prevent copying
+  document.addEventListener('visibilitychange', visibilityHandler);
+  window.addEventListener('blur', focusHandler);
+  
+  // Disable right-click during quiz
+  document.addEventListener('contextmenu', blockContext);
+  // Disable keyboard shortcuts
+  document.addEventListener('keydown', blockShortcuts);
+}
+
+function blockContext(e) { if (quizActive) e.preventDefault(); }
+function blockShortcuts(e) {
+  if (!quizActive) return;
+  if ((e.ctrlKey||e.metaKey) && ['c','v','a','u','s'].includes(e.key.toLowerCase())) e.preventDefault();
+  if (e.key === 'F12' || e.key === 'F5') e.preventDefault();
+  if (e.altKey && e.key === 'Tab') e.preventDefault();
+}
+
+function detachMalpracticeListeners() {
+  if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
+  if (focusHandler) window.removeEventListener('blur', focusHandler);
+  document.removeEventListener('contextmenu', blockContext);
+  document.removeEventListener('keydown', blockShortcuts);
+  quizActive = false;
+  // Exit fullscreen
+  try { if (document.fullscreenElement) document.exitFullscreen().catch(()=>{}); } catch(e) {}
+}
+
+async function handleViolation(eventName) {
+  if (!quizActive || isMalpractice) return;
+  warningCount++;
+  
+  // Report to server
+  if (currentAttemptId) {
+    const res = await api('POST', `/api/attempts/${currentAttemptId}/warning`, { event: eventName });
+    if (res.isMalpractice) {
+      isMalpractice = true;
+      await forcedSubmitMalpractice();
+      return;
+    }
+  }
+  
+  const remaining = 3 - warningCount;
+  showWarningBanner(warningCount, remaining, eventName);
+  
+  if (warningCount >= 3) {
+    isMalpractice = true;
+    await forcedSubmitMalpractice();
+  }
+}
+
+function showWarningBanner(count, remaining, reason) {
+  const existing = document.getElementById('malpractice-warning-banner');
+  if (existing) existing.remove();
+  
+  const banner = document.createElement('div');
+  banner.id = 'malpractice-warning-banner';
+  banner.style.cssText = `
+    position:fixed;top:0;left:0;right:0;z-index:99999;
+    background:${count>=3?'#f43f5e':count===2?'#f59e0b':'#f59e0b'};
+    color:white;padding:16px 24px;
+    display:flex;align-items:center;justify-content:space-between;
+    font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.5);
+    animation: slideDown 0.3s ease;
+  `;
+  
+  if (count >= 3) {
+    banner.innerHTML = `
+      <div>🚨 MALPRACTICE DETECTED — Auto-submitting your assessment!</div>
+      <div style="font-size:12px;font-weight:400;margin-top:2px;">You have been marked for malpractice and the officer has been notified.</div>`;
+  } else {
+    banner.innerHTML = `
+      <div>
+        <div>⚠️ WARNING ${count}/3 — ${reason}</div>
+        <div style="font-size:11px;font-weight:400;margin-top:2px;">Do NOT switch tabs or leave this window. ${remaining} warning${remaining!==1?'s':''} remaining before auto-submit!</div>
+      </div>
+      <button onclick="this.closest('#malpractice-warning-banner').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;">Dismiss</button>`;
+  }
+  document.body.appendChild(banner);
+  if (count < 3) setTimeout(() => banner.remove(), 6000);
+}
+
+async function forcedSubmitMalpractice() {
+  quizActive = false;
+  detachMalpracticeListeners();
+  clearInterval(quizTimerInterval);
+  quizTimerInterval = null;
+  
+  // Submit with current answers
+  if (currentAttemptId) {
+    await api('POST', `/api/attempts/${currentAttemptId}/submit`, { answers: quizAnswers, forced: true });
+  }
+  
+  const el = document.getElementById('quiz-wrap');
+  el.innerHTML = `
+    <div style="text-align:center;padding:60px 20px;">
+      <div style="font-size:60px;margin-bottom:16px;">🚨</div>
+      <div style="font-size:24px;font-weight:800;color:var(--danger);margin-bottom:12px;">Assessment Auto-Submitted</div>
+      <div style="font-size:15px;color:var(--text2);margin-bottom:8px;">You were detected switching tabs/windows 3 times.</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:24px;">Your session has been flagged as <strong style="color:var(--danger);">MALPRACTICE</strong> and the TPO officer has been notified.</div>
+      <div style="background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.2);border-radius:12px;padding:16px;max-width:380px;margin:0 auto 24px;font-size:13px;color:var(--text2);">
+        Your answers at the time of auto-submission have been recorded. You may not re-attempt this assessment.
+      </div>
+      <button class="btn btn-outline" onclick="go('assessments')">← Back to Assessments</button>
+    </div>`;
 }
 
 function renderQuiz() {
@@ -1210,10 +1358,19 @@ function renderQuiz() {
   const LETTERS = ['A','B','C','D'];
   el.innerHTML = `
     <div class="quiz-header">
-      <div class="quiz-timer" id="quiz-timer">⏱ ${String(Math.floor(q.timeLimit)).padStart(2,'0')}:00</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div class="quiz-timer" id="quiz-timer">⏱ ${String(Math.floor(q.timeLimit)).padStart(2,'0')}:00</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div id="warning-indicator" style="display:none;background:rgba(244,63,94,0.15);border:1px solid rgba(244,63,94,0.3);border-radius:8px;padding:4px 10px;font-size:11px;color:var(--danger);font-weight:700;">⚠️ Warnings: <span id="w-count">0</span>/3</div>
+          <div style="font-size:11px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;">🔒 Proctored</div>
+        </div>
+      </div>
       <div style="font-size:16px;font-weight:700;margin-bottom:4px;">${q.title}</div>
       <div style="font-size:12px;color:var(--text2);">${q.type} · ${q.questions.length} questions · ${q.totalMarks} marks</div>
-      <div class="quiz-progress" style="margin-top:14px;">
+      <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:8px 12px;margin-top:10px;font-size:11.5px;color:var(--warning);">
+        ⚠️ <strong>Proctored Assessment:</strong> Do not switch tabs, close this window, or use keyboard shortcuts. 3 violations = auto-submit + malpractice flag.
+      </div>
+      <div class="quiz-progress" style="margin-top:12px;">
         <div class="quiz-progress-fill" id="quiz-prog" style="width:0%"></div>
       </div>
     </div>
@@ -1232,7 +1389,6 @@ function renderQuiz() {
         </div>`).join('')}
     </div>
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;padding-bottom:32px;">
-      <button class="btn btn-outline" onclick="go('assessments')">← Back</button>
       <button class="btn btn-primary" onclick="submitQuiz()">Submit Assessment ✓</button>
     </div>`;
 
@@ -1253,12 +1409,10 @@ function renderQuiz() {
 }
 
 function selectOpt(qi, oi) {
-  // Clear previous selection for this question
   const prev = quizAnswers[qi];
   if (prev !== undefined) document.getElementById(`qo-${qi}-${prev}`)?.classList.remove('selected');
   quizAnswers[qi] = oi;
   document.getElementById(`qo-${qi}-${oi}`)?.classList.add('selected');
-  // Update progress
   const answered = Object.keys(quizAnswers).length;
   const pct = Math.round((answered / currentQuiz.questions.length) * 100);
   const prog = document.getElementById('quiz-prog');
@@ -1266,16 +1420,27 @@ function selectOpt(qi, oi) {
 }
 
 async function submitQuiz() {
+  if (isMalpractice) return;
   if (quizTimerInterval) { clearInterval(quizTimerInterval); quizTimerInterval = null; }
+  detachMalpracticeListeners();
+  
   const unanswered = currentQuiz.questions.length - Object.keys(quizAnswers).length;
-  if (unanswered > 0 && !confirm(`You have ${unanswered} unanswered question(s). Submit anyway?`)) return;
-  const res = await api('POST', `/api/assessments/${currentQuiz.id}/submit`, {
-    usn: currentUser.username,
-    answers: quizAnswers
-  });
+  if (unanswered > 0 && !confirm(`You have ${unanswered} unanswered question(s). Submit anyway?`)) {
+    // Re-attach if they cancel
+    quizActive = true;
+    attachMalpracticeListeners();
+    return;
+  }
+  
+  let res;
+  if (currentAttemptId) {
+    res = await api('POST', `/api/attempts/${currentAttemptId}/submit`, { answers: quizAnswers });
+  } else {
+    res = await api('POST', `/api/assessments/${currentQuiz.id}/submit`, { usn: currentUser.username, answers: quizAnswers });
+  }
+  
   if (res.error) { toast('Error', res.error, 'e'); return; }
   showQuizResult(res);
-  // Refresh student data
   const fresh = await api('GET', `/api/students/me/${currentUser.username}`);
   if (fresh && fresh._id) studentData = fresh;
 }

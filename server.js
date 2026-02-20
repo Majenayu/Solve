@@ -71,14 +71,34 @@ const Drive = mongoose.model('Drive', new mongoose.Schema({
 }));
 
 const Assessment = mongoose.model('Assessment', new mongoose.Schema({
-  title:      { type: String, required: true },
-  type:       { type: String, enum: ['Aptitude','Technical','Coding'], required: true },
-  driveId:    mongoose.Schema.Types.ObjectId,
-  questions:  [{ question: String, options: [String], correctAnswer: Number, marks: { type: Number, default: 1 } }],
-  timeLimit:  { type: Number, default: 30 },
-  totalMarks: Number,
-  isActive:   { type: Boolean, default: false },
-  createdAt:  { type: Date, default: Date.now }
+  title:       { type: String, required: true },
+  type:        { type: String, default: 'Mixed' },
+  categories:  [String],
+  subTopics:   [String],
+  driveId:     mongoose.Schema.Types.ObjectId,
+  questions:   [{ question: String, options: [String], correctAnswer: Number, marks: { type: Number, default: 1 }, topic: String }],
+  timeLimit:   { type: Number, default: 30 },
+  totalMarks:  Number,
+  isActive:    { type: Boolean, default: false },
+  aiGenerated: { type: Boolean, default: false },
+  createdAt:   { type: Date, default: Date.now }
+}));
+
+const AssignmentAttempt = mongoose.model('AssignmentAttempt', new mongoose.Schema({
+  assessmentId:   { type: mongoose.Schema.Types.ObjectId, required: true },
+  studentId:      { type: mongoose.Schema.Types.ObjectId, required: true },
+  usn:            { type: String, required: true },
+  studentName:    String,
+  status:         { type: String, enum: ['in-progress','submitted','malpractice'], default: 'in-progress' },
+  startedAt:      { type: Date, default: Date.now },
+  submittedAt:    Date,
+  answers:        mongoose.Schema.Types.Mixed,
+  score:          Number,
+  maxScore:       Number,
+  tabSwitchCount: { type: Number, default: 0 },
+  warnings:       { type: Number, default: 0 },
+  malpracticeLog: [{ event: String, timestamp: Date }],
+  isMalpractice:  { type: Boolean, default: false }
 }));
 
 const Notification = mongoose.model('Notification', new mongoose.Schema({
@@ -315,7 +335,151 @@ app.get('/api/drives/student/:usn', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ─── ASSESSMENT ROUTES ────────────────────────────────────────────────────────
+// ─── AI QUIZ GENERATION ───────────────────────────────────────────────────────
+app.post('/api/quiz/generate', async (req, res) => {
+  try {
+    const { categories, subTopics, questionCount = 10, difficulty = 'mixed' } = req.body;
+    if (!categories || !categories.length) return res.status(400).json({ error: 'Categories required' });
+
+    const topicList = [...categories, ...(subTopics || [])].join(', ');
+    const prompt = `You are an expert technical interview question creator for campus placements. Generate exactly ${questionCount} unique multiple-choice questions covering: ${topicList}.
+
+Requirements:
+- Difficulty: ${difficulty}
+- Each question MUST be unique and different
+- Cover various sub-topics within each selected area
+- Questions should be placement/interview focused
+- Return ONLY valid JSON, no markdown or extra text
+
+JSON format:
+{
+  "questions": [
+    {
+      "question": "Question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": 0,
+      "topic": "${categories[0]}",
+      "marks": 1
+    }
+  ]
+}
+
+correctAnswer is 0-indexed (0=A, 1=B, 2=C, 3=D).`;
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer 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',
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://placementpro.onrender.com',
+        'X-Title': 'PlacementPro Quiz Generator'
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-3.3-8b-instruct:free',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.8,
+        max_tokens: 4000
+      })
+    });
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    // Parse JSON from response
+    let parsed;
+    try {
+      // Extract JSON from potential markdown code blocks
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : content);
+    } catch(e) {
+      return res.status(500).json({ error: 'Failed to parse AI response', raw: content.substring(0, 500) });
+    }
+
+    res.json({ success: true, questions: parsed.questions || [] });
+  } catch(e) {
+    console.error('Quiz gen error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── ASSIGNMENT ATTEMPT ROUTES ────────────────────────────────────────────────
+app.post('/api/attempts/start', async (req, res) => {
+  try {
+    const { assessmentId, usn } = req.body;
+    const student = await Student.findOne({ usn: usn.toUpperCase() });
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+    // Check if already attempted
+    const existing = await AssignmentAttempt.findOne({ assessmentId, usn: usn.toUpperCase() });
+    if (existing && existing.status !== 'in-progress') return res.json({ success: false, error: 'Already submitted', attempt: existing });
+    if (existing) return res.json({ success: true, attempt: existing });
+    const attempt = await new AssignmentAttempt({
+      assessmentId, studentId: student._id, usn: student.usn, studentName: student.name
+    }).save();
+    res.json({ success: true, attempt });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/attempts/:id/warning', async (req, res) => {
+  try {
+    const { event } = req.body;
+    const attempt = await AssignmentAttempt.findById(req.params.id);
+    if (!attempt) return res.status(404).json({ error: 'Not found' });
+    attempt.tabSwitchCount = (attempt.tabSwitchCount || 0) + 1;
+    attempt.warnings = (attempt.warnings || 0) + 1;
+    attempt.malpracticeLog = attempt.malpracticeLog || [];
+    attempt.malpracticeLog.push({ event: event || 'Tab switch detected', timestamp: new Date() });
+    if (attempt.warnings >= 3) {
+      attempt.status = 'malpractice';
+      attempt.isMalpractice = true;
+      attempt.submittedAt = new Date();
+    }
+    await attempt.save();
+    res.json({ success: true, warnings: attempt.warnings, isMalpractice: attempt.isMalpractice });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/attempts/:id/submit', async (req, res) => {
+  try {
+    const { answers, forced } = req.body;
+    const attempt = await AssignmentAttempt.findById(req.params.id);
+    if (!attempt) return res.status(404).json({ error: 'Not found' });
+    const assessment = await Assessment.findById(attempt.assessmentId);
+    if (!assessment) return res.status(404).json({ error: 'Assessment not found' });
+    let score = 0;
+    assessment.questions.forEach((q, i) => {
+      if (answers && answers[i] !== undefined && parseInt(answers[i]) === q.correctAnswer) score += q.marks || 1;
+    });
+    attempt.status = attempt.isMalpractice ? 'malpractice' : 'submitted';
+    attempt.submittedAt = new Date();
+    attempt.answers = answers;
+    attempt.score = score;
+    attempt.maxScore = assessment.totalMarks;
+    await attempt.save();
+    // Update student score too
+    const student = await Student.findOne({ usn: attempt.usn });
+    if (student && !student.assessmentScores.find(a => a.assessmentId?.toString() === assessment._id.toString())) {
+      student.assessmentScores.push({ assessmentId: assessment._id, score, maxScore: assessment.totalMarks, submittedAt: new Date() });
+      await student.save();
+    }
+    res.json({ success: true, score, maxScore: assessment.totalMarks, percentage: Math.round((score / (assessment.totalMarks || 1)) * 100) });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/attempts/assessment/:assessmentId', async (req, res) => {
+  try {
+    const attempts = await AssignmentAttempt.find({ assessmentId: req.params.assessmentId }).sort({ startedAt: -1 });
+    res.json(attempts);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/attempts/all', async (req, res) => {
+  try {
+    const attempts = await AssignmentAttempt.find().sort({ startedAt: -1 }).limit(200);
+    res.json(attempts);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
 app.get('/api/assessments', async (req, res) => {
   try { res.json(await Assessment.find().sort({ createdAt: -1 })); }
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -349,7 +513,7 @@ app.get('/api/assessments/:id/take', async (req, res) => {
 
 app.post('/api/assessments/:id/submit', async (req, res) => {
   try {
-    const { usn, answers } = req.body;
+    const { usn, answers, attemptId } = req.body;
     const assessment = await Assessment.findById(req.params.id);
     if (!assessment) return res.status(404).json({ error: 'Not found' });
     let score = 0;
@@ -359,6 +523,10 @@ app.post('/api/assessments/:id/submit', async (req, res) => {
     if (!student.assessmentScores.find(a => a.assessmentId?.toString() === assessment._id.toString())) {
       student.assessmentScores.push({ assessmentId: assessment._id, score, maxScore: assessment.totalMarks, submittedAt: new Date() });
       await student.save();
+    }
+    // Update attempt if provided
+    if (attemptId) {
+      await AssignmentAttempt.findByIdAndUpdate(attemptId, { status: 'submitted', submittedAt: new Date(), answers, score, maxScore: assessment.totalMarks });
     }
     res.json({ success: true, score, maxScore: assessment.totalMarks, percentage: Math.round((score / assessment.totalMarks) * 100) });
   } catch (e) { res.status(500).json({ error: e.message }); }

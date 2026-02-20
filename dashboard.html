@@ -406,6 +406,9 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
     <div class="nav-item" onclick="go('assessments')">
       <span class="nav-icon">📝</span><span>Assessments</span>
     </div>
+    <div class="nav-item" onclick="go('assignment-monitor')">
+      <span class="nav-icon">🎯</span><span>Assignment Monitor</span>
+    </div>
     <div class="nav-item" onclick="go('shortlist')">
       <span class="nav-icon">⭐</span><span>Shortlisting</span>
     </div>
@@ -560,10 +563,85 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 
   <!-- ══════ PAGE: ASSESSMENTS ══════ -->
   <div class="page" id="page-assessments">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-      <button class="btn btn-primary" onclick="openAssessmentModal()">+ Create Assessment</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:15px;font-weight:700;">Assessments & AI Quiz Generator</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px;">Create manually or auto-generate with AI from best-in-class question banks</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-purple btn-sm" onclick="showOverlay('ai-quiz-overlay')">🤖 Generate with AI</button>
+        <button class="btn btn-primary" onclick="openAssessmentModal()">+ Create Manually</button>
+      </div>
     </div>
     <div id="assessments-list"></div>
+  </div>
+
+  <!-- ══════ PAGE: ASSIGNMENT MONITOR ══════ -->
+  <div class="page" id="page-assignment-monitor">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:15px;font-weight:700;">📊 Assignment Monitor</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px;">Live view of student assignment status and malpractice flags</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="filter-select" id="monitor-assessment-filter" onchange="loadMonitor()">
+          <option value="">All Assessments</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="loadMonitor()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;" id="monitor-stats">
+      <div class="stat-card" style="padding:16px;">
+        <div class="accent-line" style="background:var(--grad)"></div>
+        <div class="sc-icon">🎯</div>
+        <div class="sc-value" id="ms-total">—</div>
+        <div class="sc-label">Total Attempts</div>
+      </div>
+      <div class="stat-card" style="padding:16px;">
+        <div class="accent-line" style="background:linear-gradient(135deg,#22c55e,#00d4aa)"></div>
+        <div class="sc-icon">✅</div>
+        <div class="sc-value" id="ms-submitted">—</div>
+        <div class="sc-label">Submitted</div>
+      </div>
+      <div class="stat-card" style="padding:16px;">
+        <div class="accent-line" style="background:linear-gradient(135deg,#f59e0b,#f43f5e)"></div>
+        <div class="sc-icon">⚠️</div>
+        <div class="sc-value" id="ms-inprogress">—</div>
+        <div class="sc-label">In Progress</div>
+      </div>
+      <div class="stat-card" style="padding:16px;">
+        <div class="accent-line" style="background:var(--danger)"></div>
+        <div class="sc-icon">🚨</div>
+        <div class="sc-value" id="ms-malpractice">—</div>
+        <div class="sc-label">Malpractice</div>
+      </div>
+    </div>
+
+    <!-- Malpractice alerts -->
+    <div id="malpractice-alerts"></div>
+
+    <!-- Attempts table -->
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-header">
+        <div class="card-title">Student Attempts</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="filterMonitor('all')" id="mf-all">All</button>
+          <button class="btn btn-outline btn-sm" onclick="filterMonitor('in-progress')" id="mf-inprog">In Progress</button>
+          <button class="btn btn-outline btn-sm" onclick="filterMonitor('submitted')" id="mf-sub">Submitted</button>
+          <button class="btn btn-danger btn-sm" onclick="filterMonitor('malpractice')" id="mf-mal">🚨 Malpractice</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Student</th><th>USN</th><th>Assessment</th><th>Status</th><th>Score</th><th>Warnings</th><th>Started At</th><th>Events</th></tr>
+          </thead>
+          <tbody id="monitor-table"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- ══════ PAGE: SHORTLIST ══════ -->
@@ -727,6 +805,69 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   </div>
 </div>
 
+<!-- AI Quiz Generator -->
+<div class="overlay" id="ai-quiz-overlay">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <div class="modal-title">🤖 AI Quiz Generator</div>
+      <button class="modal-close" onclick="closeOverlay('ai-quiz-overlay')">✕</button>
+    </div>
+
+    <div class="form-grid" style="margin-bottom:16px;">
+      <div class="field"><label>Assessment Title *</label><input type="text" id="ai-title" placeholder="e.g. TCS Technical Round 1"></div>
+      <div class="field"><label>Time Limit (minutes)</label><input type="number" id="ai-time" value="30" min="5"></div>
+      <div class="field"><label>Number of Questions</label>
+        <select id="ai-qcount">
+          <option value="5">5 Questions</option>
+          <option value="10" selected>10 Questions</option>
+          <option value="15">15 Questions</option>
+          <option value="20">20 Questions</option>
+          <option value="25">25 Questions</option>
+        </select>
+      </div>
+      <div class="field"><label>Difficulty Level</label>
+        <select id="ai-difficulty">
+          <option value="easy">Easy</option>
+          <option value="medium" selected>Medium</option>
+          <option value="hard">Hard</option>
+          <option value="mixed">Mixed (Recommended)</option>
+        </select>
+      </div>
+      <div class="field"><label>Linked Drive (optional)</label>
+        <select id="ai-drive"><option value="">None</option></select>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px;">📚 Select Categories</div>
+    <div class="checkbox-group" id="ai-categories" style="margin-bottom:16px;">
+      <label class="check-chip"><input type="checkbox" name="cat" value="Aptitude"> 🧮 Aptitude</label>
+      <label class="check-chip"><input type="checkbox" name="cat" value="Logical Reasoning"> 🧠 Logical Reasoning</label>
+      <label class="check-chip"><input type="checkbox" name="cat" value="Verbal Ability"> 📖 Verbal Ability</label>
+      <label class="check-chip"><input type="checkbox" name="cat" value="Technical"> 💻 Technical</label>
+      <label class="check-chip"><input type="checkbox" name="cat" value="Managerial"> 👔 Managerial</label>
+      <label class="check-chip"><input type="checkbox" name="cat" value="HR Interview"> 🎤 HR Interview</label>
+    </div>
+
+    <div id="ai-subtopics-wrap" style="margin-bottom:16px;"></div>
+
+    <div id="ai-preview-wrap" style="display:none;">
+      <div class="divider"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;">✨ Generated Questions Preview</div>
+        <button class="btn btn-outline btn-sm" onclick="regenerateQuiz()">🔄 Regenerate</button>
+      </div>
+      <div id="ai-questions-preview"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeOverlay('ai-quiz-overlay')">Cancel</button>
+      <button class="btn btn-purple" id="ai-gen-btn" onclick="generateAIQuiz()">🤖 Generate Questions</button>
+      <button class="btn btn-primary" id="ai-save-btn" style="display:none;" onclick="saveAIAssessment()">💾 Save Assessment</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════ API HELPER ═══════════
 const api = async (method, url, body) => {
@@ -752,11 +893,12 @@ function toast(title, msg, type = '') {
 
 // ═══════════ NAV ═══════════
 const pageMeta = {
-  overview:    { title: 'Overview',             sub: 'Campus placement summary' },
-  students:    { title: 'Student Database',     sub: 'Manage all student records' },
-  drives:      { title: 'Placement Drives',     sub: 'Create and manage recruitment drives' },
-  assessments: { title: 'Assessments',          sub: 'Create and manage online tests' },
-  shortlist:   { title: 'Ranking & Shortlisting', sub: 'Rank and classify students per drive' }
+  overview:            { title: 'Overview',             sub: 'Campus placement summary' },
+  students:            { title: 'Student Database',     sub: 'Manage all student records' },
+  drives:              { title: 'Placement Drives',     sub: 'Create and manage recruitment drives' },
+  assessments:         { title: 'Assessments',          sub: 'Create and manage online tests with AI' },
+  'assignment-monitor':{ title: 'Assignment Monitor',   sub: 'Live student assignment status & malpractice detection' },
+  shortlist:           { title: 'Ranking & Shortlisting', sub: 'Rank and classify students per drive' }
 };
 
 let currentPage = 'overview';
@@ -780,6 +922,7 @@ function loadPage(id) {
   if (id === 'students')    loadStudents();
   if (id === 'drives')      loadDrives();
   if (id === 'assessments') loadAssessments();
+  if (id === 'assignment-monitor') loadMonitor();
   if (id === 'shortlist')   loadShortlistPage();
 }
 
@@ -1214,7 +1357,292 @@ async function confirmShortlist() {
   else toast('Error', res.error, 'e');
 }
 
-// ═══════════ CHECK AUTH & INIT ═══════════
+// ═══════════ AI QUIZ GENERATOR ═══════════
+const AI_SUBTOPICS = {
+  'Aptitude': ['Quantitative Aptitude','Number Series','Percentages','Profit & Loss','Time & Work','Speed & Distance','Averages','Ratios','Permutation & Combination','Probability'],
+  'Logical Reasoning': ['Blood Relations','Seating Arrangement','Syllogism','Coding-Decoding','Directions','Analogies','Data Interpretation','Puzzles'],
+  'Verbal Ability': ['Reading Comprehension','Sentence Correction','Synonyms & Antonyms','Para Jumbles','Fill in the Blanks','Idioms & Phrases'],
+  'Technical': ['C Programming','C++ OOP','Java','Python','Data Structures','Algorithms','DBMS & SQL','Operating Systems','Computer Networks','Web Development','JavaScript','System Design'],
+  'Managerial': ['Leadership','Decision Making','Team Management','Project Management','Business Communication','Critical Thinking','Problem Solving','Conflict Resolution'],
+  'HR Interview': ['Tell me about yourself','Strengths & Weaknesses','Situational Questions','Company Knowledge','Career Goals','Work Ethic','Salary Negotiation','Behavioral Questions']
+};
+
+let generatedQuestions = [];
+
+function updateSubtopics() {
+  const checked = [...document.querySelectorAll('#ai-categories input:checked')].map(i => i.value);
+  const wrap = document.getElementById('ai-subtopics-wrap');
+  if (!checked.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `<div style="font-size:13px;font-weight:700;margin-bottom:10px;">🎯 Select Sub-topics (optional)</div>` +
+    checked.map(cat => `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11.5px;color:var(--text2);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">${cat}</div>
+        <div class="checkbox-group">
+          ${(AI_SUBTOPICS[cat] || []).map(sub => `
+            <label class="check-chip"><input type="checkbox" name="sub" value="${sub}"> ${sub}</label>
+          `).join('')}
+        </div>
+      </div>`).join('');
+  // Re-attach chip styling
+  document.querySelectorAll('.check-chip input').forEach(inp => {
+    inp.addEventListener('change', () => inp.closest('.check-chip').classList.toggle('on', inp.checked));
+  });
+}
+
+// Watch category checkboxes
+document.addEventListener('change', e => {
+  if (e.target.closest('#ai-categories')) {
+    e.target.closest('.check-chip').classList.toggle('on', e.target.checked);
+    updateSubtopics();
+  }
+});
+
+async function generateAIQuiz() {
+  const cats = [...document.querySelectorAll('#ai-categories input:checked')].map(i => i.value);
+  if (!cats.length) { toast('Select Categories', 'Choose at least one category', 'e'); return; }
+  const subs = [...document.querySelectorAll('[name="sub"]:checked')].map(i => i.value);
+  const qcount = parseInt(document.getElementById('ai-qcount').value) || 10;
+  const diff = document.getElementById('ai-difficulty').value;
+
+  const btn = document.getElementById('ai-gen-btn');
+  btn.innerHTML = '<div class="loader"></div> Generating…';
+  btn.disabled = true;
+
+  const res = await api('POST', '/api/quiz/generate', { categories: cats, subTopics: subs, questionCount: qcount, difficulty: diff });
+
+  btn.innerHTML = '🤖 Generate Questions';
+  btn.disabled = false;
+
+  if (!res.success || !res.questions?.length) {
+    toast('Error', res.error || 'Failed to generate', 'e'); return;
+  }
+  generatedQuestions = res.questions;
+  renderGeneratedPreview();
+}
+
+function renderGeneratedPreview() {
+  const wrap = document.getElementById('ai-preview-wrap');
+  const preview = document.getElementById('ai-questions-preview');
+  wrap.style.display = '';
+  document.getElementById('ai-save-btn').style.display = '';
+  const LETTERS = ['A','B','C','D'];
+  preview.innerHTML = generatedQuestions.map((q, i) => `
+    <div class="q-builder" style="margin-bottom:12px;">
+      <div class="q-head">Q${i+1} · <span style="color:var(--accent2);">${q.topic||''}</span>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="removeAIQ(${i})" title="Remove">🗑</button>
+      </div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">${q.question}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        ${q.options.map((opt, oi) => `
+          <div style="padding:7px 10px;border-radius:8px;font-size:12px;background:${oi===q.correctAnswer?'rgba(34,197,94,0.12)':'var(--surface3)'};border:1px solid ${oi===q.correctAnswer?'rgba(34,197,94,0.3)':'var(--border)'};color:${oi===q.correctAnswer?'var(--success)':'var(--text2)'};">
+            <strong>${LETTERS[oi]}.</strong> ${opt} ${oi===q.correctAnswer?'✓':''}
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function removeAIQ(idx) {
+  generatedQuestions.splice(idx, 1);
+  renderGeneratedPreview();
+}
+
+async function regenerateQuiz() {
+  generatedQuestions = [];
+  document.getElementById('ai-preview-wrap').style.display = 'none';
+  document.getElementById('ai-save-btn').style.display = 'none';
+  await generateAIQuiz();
+}
+
+async function saveAIAssessment() {
+  if (!generatedQuestions.length) { toast('No questions', 'Generate questions first', 'e'); return; }
+  const title = document.getElementById('ai-title').value;
+  if (!title) { toast('Missing Title', 'Enter assessment title', 'e'); return; }
+  const cats = [...document.querySelectorAll('#ai-categories input:checked')].map(i => i.value);
+  const totalMarks = generatedQuestions.reduce((s, q) => s + (q.marks || 1), 0);
+  const body = {
+    title, type: cats.join('+') || 'Mixed', categories: cats,
+    timeLimit: parseInt(document.getElementById('ai-time').value),
+    driveId: document.getElementById('ai-drive').value || null,
+    questions: generatedQuestions, totalMarks, aiGenerated: true
+  };
+  const btn = document.getElementById('ai-save-btn');
+  btn.innerHTML = '<div class="loader"></div> Saving…';
+  btn.disabled = true;
+  const res = await api('POST', '/api/assessments', body);
+  btn.innerHTML = '💾 Save Assessment';
+  btn.disabled = false;
+  if (res.success) {
+    toast('Assessment Saved ✓', title, 's');
+    closeOverlay('ai-quiz-overlay');
+    generatedQuestions = [];
+    document.getElementById('ai-preview-wrap').style.display = 'none';
+    document.getElementById('ai-save-btn').style.display = 'none';
+    loadAssessments();
+  } else toast('Error', res.error, 'e');
+}
+
+// Override showOverlay to load drives into AI overlay too
+const _origShowOverlay = showOverlay;
+function showOverlay(id) {
+  _origShowOverlay(id);
+  if (id === 'ai-quiz-overlay') {
+    api('GET', '/api/drives').then(drives => {
+      const sel = document.getElementById('ai-drive');
+      sel.innerHTML = '<option value="">None</option>' + (drives.map ? drives.map(d => `<option value="${d._id}">${d.companyName}</option>`).join('') : '');
+    });
+    generatedQuestions = [];
+    document.getElementById('ai-preview-wrap').style.display = 'none';
+    document.getElementById('ai-save-btn').style.display = 'none';
+    document.getElementById('ai-subtopics-wrap').innerHTML = '';
+    document.querySelectorAll('#ai-categories input').forEach(i => { i.checked = false; i.closest('.check-chip').classList.remove('on'); });
+  }
+}
+
+// ═══════════ ASSIGNMENT MONITOR ═══════════
+let allAttempts = [];
+let monitorFilter = 'all';
+let monitorAssessments = {};
+
+async function loadMonitor() {
+  const tbody = document.getElementById('monitor-table');
+  tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3);">Loading…</td></tr>`;
+
+  // Load assessments for filter
+  const assessments = await api('GET', '/api/assessments');
+  monitorAssessments = {};
+  if (Array.isArray(assessments)) {
+    assessments.forEach(a => { monitorAssessments[a._id] = a; });
+    const sel = document.getElementById('monitor-assessment-filter');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All Assessments</option>' +
+      assessments.map(a => `<option value="${a._id}" ${a._id===current?'selected':''}>${a.title}</option>`).join('');
+  }
+
+  const filterAssessId = document.getElementById('monitor-assessment-filter').value;
+  const url = filterAssessId ? `/api/attempts/assessment/${filterAssessId}` : '/api/attempts/all';
+  const data = await api('GET', url);
+  allAttempts = Array.isArray(data) ? data : [];
+
+  updateMonitorStats();
+  renderMonitorTable();
+  renderMalpracticeAlerts();
+}
+
+function updateMonitorStats() {
+  const total = allAttempts.length;
+  const submitted = allAttempts.filter(a => a.status === 'submitted').length;
+  const inprog = allAttempts.filter(a => a.status === 'in-progress').length;
+  const malp = allAttempts.filter(a => a.status === 'malpractice' || a.isMalpractice).length;
+  document.getElementById('ms-total').textContent = total;
+  document.getElementById('ms-submitted').textContent = submitted;
+  document.getElementById('ms-inprogress').textContent = inprog;
+  document.getElementById('ms-malpractice').textContent = malp;
+}
+
+function renderMalpracticeAlerts() {
+  const malp = allAttempts.filter(a => a.status === 'malpractice' || a.isMalpractice);
+  const el = document.getElementById('malpractice-alerts');
+  if (!malp.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="card" style="border-color:rgba(244,63,94,0.4);background:rgba(244,63,94,0.04);margin-bottom:16px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title" style="color:var(--danger);">🚨 Malpractice Detected — ${malp.length} student${malp.length>1?'s':''}</div>
+          <div class="card-sub">These students were automatically flagged for suspicious activity</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        ${malp.map(a => {
+          const assessment = monitorAssessments[a.assessmentId] || {};
+          return `
+          <div style="background:var(--surface2);border:1px solid rgba(244,63,94,0.3);border-radius:10px;padding:12px 16px;min-width:200px;">
+            <div style="font-size:13px;font-weight:700;color:var(--danger);">🚨 ${a.studentName || a.usn}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:3px;">${a.usn} · ${assessment.title || 'Assessment'}</div>
+            <div style="font-size:11px;color:var(--warning);margin-top:4px;">⚠️ ${a.tabSwitchCount || 0} tab switches · ${a.warnings || 0} warnings</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;">${(a.malpracticeLog||[]).slice(-1)[0]?.event || 'Auto-submitted after 3 warnings'}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function filterMonitor(filter) {
+  monitorFilter = filter;
+  ['all','inprog','sub','mal'].forEach(k => {
+    document.getElementById(`mf-${k}`)?.classList.remove('btn-primary','btn-danger');
+    document.getElementById(`mf-${k}`)?.classList.add('btn-outline');
+  });
+  const idMap = { all: 'mf-all', 'in-progress': 'mf-inprog', submitted: 'mf-sub', malpractice: 'mf-mal' };
+  const activeBtn = document.getElementById(idMap[filter] || 'mf-all');
+  if (activeBtn) { activeBtn.classList.remove('btn-outline'); activeBtn.classList.add(filter==='malpractice'?'btn-danger':'btn-primary'); }
+  renderMonitorTable();
+}
+
+function renderMonitorTable() {
+  const tbody = document.getElementById('monitor-table');
+  let attempts = monitorFilter === 'all' ? allAttempts : allAttempts.filter(a => a.status === monitorFilter);
+  if (!attempts.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3);">No ${monitorFilter==='all'?'':monitorFilter} attempts found</td></tr>`;
+    return;
+  }
+  const statusColor = { 'submitted': 'var(--success)', 'in-progress': 'var(--warning)', 'malpractice': 'var(--danger)' };
+  const statusBadge = s => `<span class="badge" style="background:${statusColor[s]+'22'};color:${statusColor[s]};border:1px solid ${statusColor[s]+'44'}">${s==='in-progress'?'⏳ In Progress':s==='submitted'?'✅ Submitted':'🚨 Malpractice'}</span>`;
+  tbody.innerHTML = attempts.map((a, i) => {
+    const assessment = monitorAssessments[a.assessmentId] || {};
+    const pct = a.maxScore > 0 ? Math.round((a.score / a.maxScore) * 100) : null;
+    const started = new Date(a.startedAt).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+    return `<tr style="${a.isMalpractice?'background:rgba(244,63,94,0.04);':a.status==='in-progress'?'background:rgba(245,158,11,0.03);':''}">
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="color:var(--text);font-weight:600;">${a.studentName || '—'}</td>
+      <td><code style="font-size:11px;">${a.usn}</code></td>
+      <td style="color:var(--text2);font-size:12px;">${assessment.title || 'Unknown'}</td>
+      <td>${statusBadge(a.status)}</td>
+      <td style="font-weight:700;color:${pct===null?'var(--text3)':pct>=70?'var(--success)':pct>=40?'var(--warning)':'var(--danger)'}">
+        ${pct !== null ? `${a.score}/${a.maxScore} (${pct}%)` : '—'}
+      </td>
+      <td>
+        ${a.warnings > 0 ? `<span style="color:${a.warnings>=3?'var(--danger)':'var(--warning)'};font-weight:700;">⚠️ ${a.warnings}</span>` : '<span style="color:var(--text3)">0</span>'}
+      </td>
+      <td style="font-size:11.5px;color:var(--text3);">${started}</td>
+      <td>
+        ${a.malpracticeLog?.length ? `<button class="btn btn-outline btn-sm btn-icon" onclick="viewMalpracticeLog(${JSON.stringify(a.malpracticeLog||[]).replace(/"/g,'&quot;')}, '${a.studentName||a.usn}')" title="View events">📋</button>` : '—'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function viewMalpracticeLog(log, name) {
+  if (typeof log === 'string') { try { log = JSON.parse(log); } catch { log = []; } }
+  const events = Array.isArray(log) ? log : [];
+  const html = events.map(e => `
+    <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--danger);font-size:18px;">⚠️</span>
+      <div>
+        <div style="font-size:13px;color:var(--text);">${e.event}</div>
+        <div style="font-size:11px;color:var(--text3);">${new Date(e.timestamp).toLocaleString('en-IN')}</div>
+      </div>
+    </div>`).join('') || '<div style="color:var(--text3);padding:16px;text-align:center;">No events logged</div>';
+  
+  // Simple alert-style display
+  const modal = document.createElement('div');
+  modal.className = 'overlay show';
+  modal.style.zIndex = '9999';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <div class="modal-title">🚨 Malpractice Log — ${name}</div>
+        <button class="modal-close" onclick="this.closest('.overlay').remove()">✕</button>
+      </div>
+      <div>${html}</div>
+      <div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.overlay').remove()">Close</button></div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// Auto-refresh monitor every 15 seconds when on that page
+setInterval(() => { if (currentPage === 'assignment-monitor') loadMonitor(); }, 15000);
+
+
 (async () => {
   const me = await api('GET', '/api/auth/me');
   if (!me || me.error || me.role !== 'admin') {
