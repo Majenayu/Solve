@@ -167,9 +167,21 @@ app.post('/api/auth/login', async (req, res) => {
     if (!student) return res.status(401).json({ error: 'Student not found' });
     if (student.password !== password) return res.status(401).json({ error: 'Invalid password' });
     req.session.user = { role: 'student', username: student.usn, name: student.name, id: student._id };
-    return res.json({ success: true, role: 'student', name: student.name });
+    // Check if this is first login (profile not yet filled via Google Form)
+    const profileComplete = !!(student.profile && student.profile.gender);
+    return res.json({ success: true, role: 'student', name: student.name, usn: student.usn, needsProfile: !profileComplete });
   }
   res.status(400).json({ error: 'Invalid role' });
+});
+
+// Check if student profile has been filled (used for polling after Google Form redirect)
+app.get('/api/auth/profile-status/:usn', async (req, res) => {
+  try {
+    const student = await Student.findOne({ usn: req.params.usn.toUpperCase() });
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+    const profileComplete = !!(student.profile && student.profile.gender);
+    res.json({ profileComplete, name: student.name });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/auth/google', async (req, res) => {

@@ -791,11 +791,77 @@ async function doLogin() {
       window.location.href = '/dashboard';
       return;
     }
+    // First-time student: redirect to Google Form, then poll for profile completion
+    if (res.needsProfile) {
+      showGoogleFormWaiting(res.usn, res.name);
+      return;
+    }
     window.location.href = '/student';
     return;
   } else {
     showToast('Login Failed', res.error, 'error');
   }
+}
+
+function showGoogleFormWaiting(usn, name) {
+  // Hide login page, show waiting screen
+  document.getElementById('login-page').style.display = 'none';
+  let waitDiv = document.getElementById('form-waiting-page');
+  if (!waitDiv) {
+    waitDiv = document.createElement('div');
+    waitDiv.id = 'form-waiting-page';
+    waitDiv.style.cssText = `
+      position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
+      align-items:center;justify-content:center;z-index:9999;gap:20px;padding:32px;text-align:center;
+    `;
+    document.body.appendChild(waitDiv);
+  }
+  waitDiv.style.display = 'flex';
+  waitDiv.innerHTML = `
+    <div style="font-size:48px;">📋</div>
+    <h2 style="color:var(--text);font-size:22px;font-weight:700;">Welcome, ${name}!</h2>
+    <p style="color:var(--text2);max-width:420px;line-height:1.6;">
+      Since this is your <strong>first login</strong>, you need to complete a one-time registration form.
+      Please fill in all your details accurately — this information will be used for placement records.
+    </p>
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLScBZINZkwDg9jx2hz5TX8X49NrSaTHF5MRB6Q2VECsVz4mJXA/viewform?usp=publish-editor"
+       target="_blank"
+       style="background:var(--accent);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:16px;display:inline-block;">
+      📝 Open Registration Form
+    </a>
+    <div style="display:flex;align-items:center;gap:10px;color:var(--text3);font-size:13px;">
+      <div class="spinner" style="width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      Waiting for form submission…
+    </div>
+    <p style="color:var(--text3);font-size:12px;">After submitting the form, you will be automatically redirected to your dashboard.</p>
+    <button onclick="cancelFormWait()" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;text-decoration:underline;">
+      Back to Login
+    </button>
+  `;
+
+  // Open form immediately in new tab
+  window.open('https://docs.google.com/forms/d/e/1FAIpQLScBZINZkwDg9jx2hz5TX8X49NrSaTHF5MRB6Q2VECsVz4mJXA/viewform?usp=publish-editor', '_blank');
+
+  // Poll every 5 seconds to check if form has been submitted
+  let _formPollInterval = setInterval(async () => {
+    try {
+      const r = await fetch('/api/auth/profile-status/' + encodeURIComponent(usn));
+      const data = await r.json();
+      if (data.profileComplete) {
+        clearInterval(_formPollInterval);
+        window.location.href = '/student';
+      }
+    } catch(e) { /* keep polling */ }
+  }, 5000);
+
+  window._formPollInterval = _formPollInterval;
+}
+
+function cancelFormWait() {
+  if (window._formPollInterval) clearInterval(window._formPollInterval);
+  const waitDiv = document.getElementById('form-waiting-page');
+  if (waitDiv) waitDiv.style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
 }
 
 function setupUser(res) {
