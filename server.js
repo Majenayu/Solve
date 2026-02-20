@@ -109,6 +109,11 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   if (role === 'student') {
+    // ── Dev shortcut: username=a  password=aa ──
+    if (username === 'a' && password === 'aa') {
+      req.session.user = { role: 'student', username: 'A', name: 'Test Student', id: null };
+      return res.json({ success: true, role: 'student', name: 'Test Student' });
+    }
     const student = await Student.findOne({ usn: username.toUpperCase() });
     if (!student) return res.status(401).json({ error: 'Student not found' });
     if (student.password !== password) return res.status(401).json({ error: 'Invalid password' });
@@ -445,8 +450,6 @@ app.get('/api/form-submit', (req, res) => {
 
 // ─── SERVE FRONTEND ───────────────────────────────────────────────────────────
 app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
-app.get('/student', (req, res) => res.sendFile(path.join(__dirname, 'dashboard1.html')));
-app.get('/dashboard1', (req, res) => res.sendFile(path.join(__dirname, 'dashboard1.html')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 app.listen(PORT, () => console.log(`🚀 PlacementPro running on http://localhost:${PORT}`));

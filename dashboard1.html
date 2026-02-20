@@ -1421,6 +1421,14 @@ document.addEventListener('click', e => {
   if (s && s._id) {
     studentData = s;
     document.getElementById('sb-avatar').textContent = initials(s.name);
+  } else {
+    // Fallback for test/demo login with no DB record
+    studentData = {
+      _id: null, name: me.name || 'Test Student', usn: me.username,
+      branch: 'CSE', year: 4, cgpa: 8.5, backlogs: 0,
+      email: 'test@example.com', phone: '', profile: {},
+      driveApplications: [], assessmentScores: []
+    };
   }
 
   // Load eligible drives
