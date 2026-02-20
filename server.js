@@ -562,8 +562,6 @@ app.post('/api/quiz/generate', async (req, res) => {
   }
 });
 
-});
-
 // ─── PLACEMENT CHATBOT ───────────────────────────────────────────────────────
 app.post('/api/chat', async (req, res) => {
   try {
